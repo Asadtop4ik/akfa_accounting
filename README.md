@@ -1,33 +1,95 @@
-### Akfa Accounting
+# 🚀 **Akfa ERP Setup — Full Installation Guide**
 
-Akfa
+Quyidagi buyruqlar yordamida Frappe/ERPNext, HRMS va `akfa_accounting` custom app’ini o‘rnatishingiz mumkin.
 
-### Installation
+---
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+# 📌 **1. Bench yaratish**
 
 ```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
+bench init akfa-bench
+```
+
+---
+
+# 📌 **2. Yangi sayt yaratish**
+
+```bash
+cd akfa-bench
+bench new-site akfa.local
+```
+
+Sayt yaratilgandan so‘ng uni tanlaymiz:
+
+```bash
+bench use akfa.local
+```
+
+---
+
+# 📌 **3. Bench’ni ishga tushirish (boshqa terminalda)**
+
+Ikkita terminal oching:
+
+**Terminal #1:**
+
+```bash
+cd akfa-bench
+bench start
+```
+
+Bench backend serverlari shu terminalda ishlaydi.
+
+---
+
+# 📌 **4. ERPNext va HRMS repository’larini yuklab olish**
+
+**Terminal #2:**
+
+```bash
+cd akfa-bench
+bench get-app erpnext
+bench get-app hrms
+```
+
+---
+
+# 📌 **5. ERPNext va HRMS o‘rnatish**
+
+```bash
+bench install-app erpnext
+bench install-app hrms
+```
+
+---
+
+# 📌 **6. Akfa Accounting modulini yuklab olish**
+
+```bash
+bench get-app akfa_accounting https://github.com/Asadtop4ik/akfa_accounting.git
+```
+
+---
+
+# 📌 **7. Akfa Accounting modulini o‘rnatish**
+
+```bash
 bench install-app akfa_accounting
 ```
 
-### Contributing
+---
 
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+# 🎉 **O‘rnatish tugadi!**
+
+Endi serverni qayta ishga tushirish tavsiya qilinadi:
 
 ```bash
-cd apps/akfa_accounting
-pre-commit install
+bench restart
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+Saytga tashrif buyuring:
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+```
+http://akfa.local:8000
+```
 
-### License
-
-mit
