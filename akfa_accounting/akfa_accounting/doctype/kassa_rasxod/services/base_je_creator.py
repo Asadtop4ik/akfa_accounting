@@ -149,3 +149,46 @@ class BaseJECreator:
             entry["exchange_rate"] = 1 if use_usd_rate else self.exchange_rate
 
         je.append("accounts", entry)
+
+    def _resolve_party_payable_account(self, party_type, party):
+        """Resolve a party's payable account via ERPNext's standard logic.
+
+        A supplier's debt is held in that supplier's own payable account, whose
+        currency is the supplier's currency. This mirrors how Purchase Invoice
+        and Payment Entry pick the party account.
+        """
+        from erpnext.accounts.party import get_party_account
+
+        account = get_party_account(party_type, party, self.company)
+        if not account:
+            frappe.throw(
+                _("No payable account found for {0} {1} in company {2}").format(
+                    party_type, party, self.company
+                )
+            )
+
+        currency = frappe.db.get_value("Account", account, "account_currency")
+        return account, currency
+
+    def _add_party_payable_entry(self, je, party_type, party, amount, usd_amount,
+                                 debit=False, credit=False):
+        """Add a payable line for a party in the party's own account and currency."""
+        account, currency = self._resolve_party_payable_account(party_type, party)
+
+        if currency == "UZS":
+            value, use_usd_rate = amount, False
+        elif currency == "USD":
+            value, use_usd_rate = usd_amount, True
+        else:
+            frappe.throw(
+                _("Unsupported currency {0} on payable account {1}").format(
+                    currency, account
+                )
+            )
+
+        self._add_account_entry(
+            je, account,
+            debit=value if debit else 0,
+            credit=value if credit else 0,
+            party_type=party_type, party=party, use_usd_rate=use_usd_rate,
+        )

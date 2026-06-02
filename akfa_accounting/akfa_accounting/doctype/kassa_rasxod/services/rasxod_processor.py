@@ -86,8 +86,8 @@ class RasxodProcessor(NachislenieMixin, BaseJECreator):
         je = self._create_journal_entry()
         je.user_remark = f"Auto-created from Kassa Rasxod {self.doc.name}, Row #{item_idx}. {izoh}"
 
-        self._add_account_entry(je, self.default_payable_account, credit=amount,
-                                party_type=party_type, party=party)
+        self._add_party_payable_entry(je, party_type, party, amount, usd_amount,
+                                      credit=True)
         self._add_account_entry(je, self.cash_account, debit=amount)
         self._add_account_entry(je, self.cash_account, credit=amount)
         self._add_account_entry(je, expense_account, debit=usd_amount,
@@ -108,7 +108,7 @@ class RasxodProcessor(NachislenieMixin, BaseJECreator):
         # JE-1: Payment on posting_date (4 rows)
         je1 = self._create_journal_entry()
         je1.user_remark = f"Payment - Auto-created from Kassa Rasxod {self.doc.name}, Row #{item_idx}. {izoh}"
-        self._add_nachislenie_payment_entries_with_party(je1, amount, party_type, party, nachislenie_supplier)
+        self._add_nachislenie_payment_entries_with_party(je1, amount, usd_amount, party_type, party, nachislenie_supplier)
         je1.insert()
         je1.submit()
 
@@ -135,7 +135,7 @@ class RasxodProcessor(NachislenieMixin, BaseJECreator):
         # JE-1: Payment on posting_date (2 rows)
         je1 = self._create_journal_entry()
         je1.user_remark = f"Payment - Auto-created from Kassa Rasxod {self.doc.name}, Row #{item_idx}. {izoh}"
-        self._add_nachislenie_payment_entries_without_party(je1, amount, nachislenie_supplier)
+        self._add_nachislenie_payment_entries_without_party(je1, amount, usd_amount, nachislenie_supplier)
         je1.insert()
         je1.submit()
 
