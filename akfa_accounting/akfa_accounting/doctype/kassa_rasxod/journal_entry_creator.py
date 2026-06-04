@@ -86,7 +86,7 @@ def cancel_linked_journal_entries(kassa_rasxod_name):
     journal_entries = frappe.get_all(
         "Journal Entry",
         filters={
-            "user_remark": ["like", f"%Kassa Rasxod {kassa_rasxod_name}%"],
+            "custom_kassa_rasxod": kassa_rasxod_name,
             "docstatus": 1
         },
         pluck="name"

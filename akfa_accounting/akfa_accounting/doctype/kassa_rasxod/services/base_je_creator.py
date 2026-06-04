@@ -118,6 +118,7 @@ class BaseJECreator:
         je.voucher_type = "Journal Entry"
         je.posting_date = posting_date or self.doc.posting_date
         je.company = self.company
+        je.custom_kassa_rasxod = self.doc.name
 
         if self.is_multi_currency:
             je.multi_currency = 1
