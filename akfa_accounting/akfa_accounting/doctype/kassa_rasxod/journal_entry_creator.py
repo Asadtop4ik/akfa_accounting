@@ -82,12 +82,18 @@ class JournalEntryCreator:
 
 
 def cancel_linked_journal_entries(kassa_rasxod_name):
-    """Cancel all Journal Entries linked to a Kassa Rasxod document"""
+    """Cancel all Journal Entries linked to a Kassa Rasxod document.
+
+    Matches by the custom_kassa_rasxod link field, with a user_remark fallback
+    so older entries created before the link field existed are still cancelled.
+    The trailing comma in the remark pattern keeps "KR-...-1" amended docs out.
+    """
     journal_entries = frappe.get_all(
         "Journal Entry",
-        filters={
+        filters={"docstatus": 1},
+        or_filters={
             "custom_kassa_rasxod": kassa_rasxod_name,
-            "docstatus": 1
+            "user_remark": ["like", f"%Kassa Rasxod {kassa_rasxod_name},%"]
         },
         pluck="name"
     )
