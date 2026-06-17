@@ -114,7 +114,7 @@ def validate_mode_of_payment_restrictions(doc, method=None):
     """
     if not doc.mode_of_payment:
         return
-    if frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davron kassa"}):
+    if frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davronkassa"}):
         if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "Administrator"}):
             if doc.mode_of_payment not in ALLOWED_MODES_DAVRON_KASSA:
                 frappe.throw(
@@ -129,7 +129,7 @@ def block_internal_transfer_submit(doc, method=None):
     """
     if doc.payment_type != "Internal Transfer":
         return
-    if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davron kassa"}):
+    if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davronkassa"}):
         return
     if frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "Administrator"}):
         return

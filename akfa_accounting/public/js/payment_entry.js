@@ -189,7 +189,7 @@ function filter_payment_type_options(frm) {
 
 // Restrict mode_of_payment dropdown to cash-only options for "davron kassa" role
 function restrict_mode_of_payment(frm) {
-    if (frappe.user.has_role('davron kassa') && !frappe.user.has_role('Administrator')) {
+    if (frappe.user.has_role('davronkassa') && !frappe.user.has_role('Administrator')) {
         frm.set_query('mode_of_payment', () => ({
             filters: { name: ['in', ['Наличные USD', 'Наличные UZS']] }
         }));
