@@ -3,9 +3,14 @@ from frappe import _
 from frappe.utils import flt, getdate
 
 
+ALLOWED_MODES_DAVRON_KASSA = {"Наличные USD", "Наличные UZS"}
+RESTRICTED_TRANSFER_ACCOUNTS = {"1112", "1113", "1114", "1115"}
+
+
 def validate_payment_entry(doc, method=None):
 	"""Run all akfa_accounting validations for Payment Entry."""
 	validate_payment_type_role_restrictions(doc, method)
+	validate_mode_of_payment_restrictions(doc, method)
 	validate_currency_consistency(doc, method)
 	validate_exchange_rate_freshness(doc, method)
 
@@ -99,3 +104,39 @@ def validate_payment_type_role_restrictions(doc, method=None):
                       "Please use 'Receive' or 'Internal Transfer' instead."),
                     title=_("Permission Denied")
                 )
+
+
+def validate_mode_of_payment_restrictions(doc, method=None):
+    """Restrict 'davron kassa' role users to cash-only Mode of Payment.
+
+    Server-side guard mirroring the client set_query filter: even if the
+    dropdown filter is bypassed, only 'Наличные USD' / 'Наличные UZS' are allowed.
+    """
+    if not doc.mode_of_payment:
+        return
+    if frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davron kassa"}):
+        if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "Administrator"}):
+            if doc.mode_of_payment not in ALLOWED_MODES_DAVRON_KASSA:
+                frappe.throw(
+                    _("Sizga faqat 'Наличные USD' yoki 'Наличные UZS' to'lov rejimi ruxsat etilgan."),
+                    title=_("Permission Denied")
+                )
+
+
+def block_internal_transfer_submit(doc, method=None):
+    """TASK 2: 'davron kassa' role — Internal Transfer to 1112/1113/1114/1115
+    can only be saved as draft, not submitted. Runs on before_submit.
+    """
+    if doc.payment_type != "Internal Transfer":
+        return
+    if not frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "davron kassa"}):
+        return
+    if frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "Administrator"}):
+        return
+    acc_no = frappe.db.get_value("Account", doc.paid_to, "account_number")
+    if acc_no in RESTRICTED_TRANSFER_ACCOUNTS:
+        frappe.throw(
+            _("Bu hisobga ({0}) Internal Transfer'ni faqat qoralama (draft) saqlash mumkin, "
+              "submit qilib bo'lmaydi.").format(acc_no),
+            title=_("Submit taqiqlangan")
+        )

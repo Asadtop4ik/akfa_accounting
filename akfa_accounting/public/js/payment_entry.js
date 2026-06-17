@@ -2,6 +2,8 @@ frappe.ui.form.on('Payment Entry', {
     onload: function (frm) {
         // TASK 1: Hide "Pay" payment type for "davron kassa" role (per-form instance)
         filter_payment_type_options(frm);
+        // Restrict mode_of_payment options for "davron kassa" role
+        restrict_mode_of_payment(frm);
         // Create a container for recent payments at the end of form
         if (!frm.$recent_payments_container) {
             frm.$recent_payments_container = $('<div class="form-section" style="margin-top: 30px;"></div>');
@@ -182,6 +184,15 @@ function filter_payment_type_options(frm) {
                 console.log('[TASK 1] "Pay" option hidden for davron kassa role');
             }
         }, 100);
+    }
+}
+
+// Restrict mode_of_payment dropdown to cash-only options for "davron kassa" role
+function restrict_mode_of_payment(frm) {
+    if (frappe.user.has_role('davron kassa') && !frappe.user.has_role('Administrator')) {
+        frm.set_query('mode_of_payment', () => ({
+            filters: { name: ['in', ['Наличные USD', 'Наличные UZS']] }
+        }));
     }
 }
 
