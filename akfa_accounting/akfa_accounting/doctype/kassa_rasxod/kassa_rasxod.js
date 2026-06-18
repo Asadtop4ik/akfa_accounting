@@ -4,6 +4,12 @@
 
 frappe.ui.form.on('Kassa Rasxod', {
 	onload: function (frm) {
+		// Restrict mode_of_payment to H-cash options for maincash1 user
+		if (frappe.session.user === 'maincash1@gmail.com') {
+			frm.set_query('mode_of_payment', () => ({
+				filters: { name: ['in', ['Наличный USD H', 'Наличный UZS H']] }
+			}));
+		}
 		if (!frm.doc.currency_exchange_rate) {
 			akfa_kr.get_exchange_rate(frm);
 		}

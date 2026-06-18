@@ -11,6 +11,13 @@
 				.custom-table-container {
 					margin: 15px 0;
 					overflow-x: auto;
+					overflow-y: auto;
+					max-height: 60vh;
+				}
+				.custom-items-table thead th {
+					position: sticky;
+					top: 0;
+					z-index: 6;
 				}
 				.custom-items-table {
 					width: 100%;

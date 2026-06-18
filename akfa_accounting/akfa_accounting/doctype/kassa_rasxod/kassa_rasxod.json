@@ -41,7 +41,7 @@
             "fieldname": "mode_of_payment",
             "fieldtype": "Link",
             "in_list_view": 1,
-            "label": "Оборот",
+            "label": "Счет",
             "options": "Mode of Payment",
             "reqd": 1
         },
