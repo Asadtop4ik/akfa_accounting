@@ -192,7 +192,7 @@ function restrict_mode_of_payment(frm) {
     // Restrict mode_of_payment to specific options for maincash1@gmail.com (Hamidullo)
     if (frappe.session.user === 'maincash1@gmail.com') {
         frm.set_query('mode_of_payment', () => ({
-            filters: { name: ['in', ['Наличный USD H', 'Наличный UZS H', 'Перечисления']] }
+            filters: { name: ['in', ['Наличный USD H', 'Наличный UZS H', 'Перечиления']] }
         }));
         return;
     }
