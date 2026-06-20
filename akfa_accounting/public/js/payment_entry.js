@@ -189,6 +189,13 @@ function filter_payment_type_options(frm) {
 
 // Restrict mode_of_payment dropdown to cash-only options for "davron kassa" role
 function restrict_mode_of_payment(frm) {
+    // Restrict mode_of_payment to specific options for maincash1@gmail.com (Hamidullo)
+    if (frappe.session.user === 'maincash1@gmail.com') {
+        frm.set_query('mode_of_payment', () => ({
+            filters: { name: ['in', ['Наличный USD H', 'Наличный UZS H', 'Перечисления']] }
+        }));
+        return;
+    }
     if (frappe.user.has_role('davronkassa') && !frappe.user.has_role('Administrator')) {
         frm.set_query('mode_of_payment', () => ({
             filters: { name: ['in', ['Наличные USD', 'Наличные UZS']] }

@@ -252,6 +252,9 @@
 
 			row_html += `
 			<td>
+				<input type="date" class="item-date required-field" value="${item.date || ''}" required>
+			</td>
+			<td>
 				<select class="item-party-type">
 					<option value="">-</option>
 					<option value="Employee" ${item.party_type === 'Employee' ? 'selected' : ''}>Employee</option>
@@ -264,9 +267,6 @@
 				<select class="item-party">
 					<option value="">-</option>
 				</select>
-			</td>
-			<td>
-				<input type="date" class="item-date required-field" value="${item.date || ''}" required>
 			</td>
 			<td>
 				<button type="button" class="btn btn-xs btn-default item-upload-btn" data-file="${item.upload_file || ''}">
@@ -417,9 +417,9 @@
 				header_html += `<th class="dynamic-col" style="width: 120px;">${summa_label}</th>${kurs_th}`;
 			}
 			header_html += `
+				<th class="dynamic-col" style="width: 130px;">Дата *</th>
 				<th class="dynamic-col" style="width: 120px;">Party Type</th>
 				<th class="dynamic-col" style="width: 140px;">Party</th>
-				<th class="dynamic-col" style="width: 130px;">Дата *</th>
 				<th class="dynamic-col" style="width: 50px;">File</th>`;
 		} else if (tip === ns.TIP_PODOCHOT_PRIXOD || tip === ns.TIP_PODOCHOT_RASXOD) {
 			header_html = `
