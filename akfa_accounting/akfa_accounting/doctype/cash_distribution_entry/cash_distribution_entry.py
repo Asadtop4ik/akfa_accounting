@@ -475,10 +475,46 @@ def get_cash_distribution_data(posting_date, company):
 	aripov_usd_balance = get_balance_on(account=aripov_usd_account, date=posting_date) if aripov_usd_account else 0
 	aripov_uzs_balance = get_balance_on(account=aripov_uzs_account, date=posting_date) if aripov_uzs_account else 0
 
+	# 5. Get per-category customer payment totals (informational)
+	category_items = []
+	for cat in frappe.get_all("Customer Category", pluck="name"):
+		customers = frappe.get_all(
+			"Customer Category Item",
+			filters={"parent": cat},
+			pluck="customer",
+		)
+		total_usd = total_uzs = 0
+		if customers:
+			rows = frappe.db.sql("""
+				SELECT
+					pe.paid_to_account_currency AS currency,
+					SUM(CASE WHEN pe.paid_to_account_currency = 'UZS'
+							 THEN pe.received_amount ELSE pe.paid_amount END) AS total
+				FROM `tabPayment Entry` pe
+				WHERE pe.posting_date = %s
+					AND pe.payment_type = 'Receive'
+					AND pe.party_type = 'Customer'
+					AND pe.party IN %s
+					AND pe.company = %s
+					AND pe.docstatus = 1
+				GROUP BY pe.paid_to_account_currency
+			""", (posting_date, tuple(customers), company), as_dict=True)
+			for r in rows:
+				if r.currency == "USD":
+					total_usd = flt(r.total)
+				elif r.currency == "UZS":
+					total_uzs = flt(r.total)
+		category_items.append({
+			"category": cat,
+			"total_usd": total_usd,
+			"total_uzs": total_uzs,
+		})
+
 	return {
 		"davron_items": davron_items,
 		"transfer_items": transfer_items,
 		"rasxod_items": rasxod_items,
+		"category_items": category_items,
 		"aripov_usd_balance": aripov_usd_balance or 0,
 		"aripov_uzs_balance": aripov_uzs_balance or 0,
 		"exchange_rate": exchange_rate

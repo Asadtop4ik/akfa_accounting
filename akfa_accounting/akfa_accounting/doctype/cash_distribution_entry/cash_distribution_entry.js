@@ -61,6 +61,7 @@ frappe.ui.form.on("Cash Distribution Entry", {
 					frm.clear_table("items");
 					frm.clear_table("transfer_items");
 					frm.clear_table("rasxod_items");
+					frm.clear_table("category_summary");
 
 					// 1. Populate Davron Tushumlari (Reference)
 					if (r.message.davron_items && r.message.davron_items.length > 0) {
@@ -94,9 +95,20 @@ frappe.ui.form.on("Cash Distribution Entry", {
 						});
 					}
 
+					// 4. Populate Category Summary (informational)
+					if (r.message.category_items && r.message.category_items.length > 0) {
+						r.message.category_items.forEach(function(item) {
+							let row = frm.add_child("category_summary");
+							row.category = item.category;
+							row.total_usd = item.total_usd;
+							row.total_uzs = item.total_uzs;
+						});
+					}
+
 					frm.refresh_field("items");
 					frm.refresh_field("transfer_items");
 					frm.refresh_field("rasxod_items");
+					frm.refresh_field("category_summary");
 					frm.trigger("calculate_totals");
 
 					// Show summary

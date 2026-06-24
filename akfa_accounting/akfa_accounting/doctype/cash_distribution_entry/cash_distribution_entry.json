@@ -26,6 +26,8 @@
         "section_break_rasxod",
         "rasxod_items",
         "hamidulla_rasxod_usd",
+        "section_break_category",
+        "category_summary",
         "section_break_distribution",
         "distribution_details",
         "section_break_totals",
@@ -166,6 +168,18 @@
             "fieldtype": "Currency",
             "label": "Hamidulla Rasxod (USD)",
             "options": "USD",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_break_category",
+            "fieldtype": "Section Break",
+            "label": "Kategoriya bo'yicha tushumlar (Information)"
+        },
+        {
+            "fieldname": "category_summary",
+            "fieldtype": "Table",
+            "label": "Kategoriya Summary",
+            "options": "Cash Distribution Category Summary",
             "read_only": 1
         },
         {
