@@ -58,21 +58,9 @@ frappe.ui.form.on("Cash Distribution Entry", {
 					frm.set_value("aripov_uzs_balance", r.message.aripov_uzs_balance || 0);
 
 					// Clear existing items
-					frm.clear_table("items");
 					frm.clear_table("transfer_items");
 					frm.clear_table("rasxod_items");
 					frm.clear_table("category_summary");
-
-					// 1. Populate Davron Tushumlari (Reference)
-					if (r.message.davron_items && r.message.davron_items.length > 0) {
-						r.message.davron_items.forEach(function(item) {
-							let row = frm.add_child("items");
-							row.tranzaksiya_turi = item.tranzaksiya_turi || "No Type";
-							row.currency = item.currency;
-							row.total_amount = item.total_amount;
-							row.source_account = item.source_account;
-						});
-					}
 
 					// 2. Populate Internal Transfers
 					if (r.message.transfer_items && r.message.transfer_items.length > 0) {
@@ -105,7 +93,6 @@ frappe.ui.form.on("Cash Distribution Entry", {
 						});
 					}
 
-					frm.refresh_field("items");
 					frm.refresh_field("transfer_items");
 					frm.refresh_field("rasxod_items");
 					frm.refresh_field("category_summary");
@@ -129,19 +116,6 @@ frappe.ui.form.on("Cash Distribution Entry", {
 	},
 
 	calculate_totals(frm) {
-		// Davron Tushumlari (Reference only)
-		let davron_received_usd = 0;
-		let davron_received_uzs = 0;
-		(frm.doc.items || []).forEach(function(item) {
-			if (item.currency === "USD") {
-				davron_received_usd += flt(item.total_amount);
-			} else if (item.currency === "UZS") {
-				davron_received_uzs += flt(item.total_amount);
-			}
-		});
-		frm.set_value("davron_received_usd", davron_received_usd);
-		frm.set_value("davron_received_uzs", davron_received_uzs);
-
 		// Internal Transfers TO ARIPOV
 		let internal_transfers_usd = 0;
 		let internal_transfers_uzs = 0;

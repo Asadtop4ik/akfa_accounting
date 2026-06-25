@@ -13,12 +13,6 @@
         "column_break_1",
         "aripov_usd_balance",
         "aripov_uzs_balance",
-        "section_break_davron",
-        "items",
-        "section_break_davron_totals",
-        "davron_received_usd",
-        "column_break_davron",
-        "davron_received_uzs",
         "section_break_transfers",
         "transfer_items",
         "internal_transfers_usd",
@@ -84,40 +78,6 @@
             "fieldname": "aripov_uzs_balance",
             "fieldtype": "Currency",
             "label": "Aripov UZS Balans",
-            "options": "UZS",
-            "read_only": 1
-        },
-        {
-            "fieldname": "section_break_davron",
-            "fieldtype": "Section Break",
-            "label": "Davron Kassa - Bugungi Tushumlar (Reference)"
-        },
-        {
-            "fieldname": "items",
-            "fieldtype": "Table",
-            "label": "Davron Tushumlari",
-            "options": "Cash Distribution Item",
-            "read_only": 1
-        },
-        {
-            "fieldname": "section_break_davron_totals",
-            "fieldtype": "Section Break"
-        },
-        {
-            "fieldname": "davron_received_usd",
-            "fieldtype": "Currency",
-            "label": "Davron Total (USD)",
-            "options": "USD",
-            "read_only": 1
-        },
-        {
-            "fieldname": "column_break_davron",
-            "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "davron_received_uzs",
-            "fieldtype": "Currency",
-            "label": "Davron Total (UZS)",
             "options": "UZS",
             "read_only": 1
         },

@@ -8,7 +8,6 @@ from frappe.utils import flt
 
 # Account number constants
 ARIPOV_ACCOUNTS = ['1114', '1115']
-DAVRON_ACCOUNTS = ['1110', '1111']
 HAMIDULLA_MODES = {
 	'USD': 'Наличный USD H',
 	'UZS': 'Наличный UZS H'
@@ -114,16 +113,6 @@ class CashDistributionEntry(Document):
 		"""Calculate totals based on new business logic:
 		ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod
 		"""
-		# Davron Tushumlari (Reference only)
-		self.davron_received_usd = sum(
-			flt(item.total_amount) for item in self.items
-			if item.currency == "USD"
-		)
-		self.davron_received_uzs = sum(
-			flt(item.total_amount) for item in self.items
-			if item.currency == "UZS"
-		)
-
 		# Internal Transfers TO ARIPOV
 		self.internal_transfers_usd = sum(
 			flt(t.amount) for t in self.transfer_items
@@ -362,16 +351,6 @@ def get_account_by_number(account_number, company):
 	)
 
 
-def get_accounts_by_numbers(account_numbers, company):
-	"""Get list of account names by account numbers"""
-	accounts = []
-	for num in account_numbers:
-		account = get_account_by_number(num, company)
-		if account:
-			accounts.append(account)
-	return accounts
-
-
 @frappe.whitelist()
 def get_cash_distribution_data(posting_date, company):
 	"""Fetch all data for Cash Distribution Entry
@@ -383,33 +362,7 @@ def get_cash_distribution_data(posting_date, company):
 	# Get exchange rate for UZS → USD conversion (with fallback to latest)
 	exchange_rate = get_exchange_rate_with_fallback(posting_date)
 
-	# 1. Get Davron Tushumlari (Reference)
-	davron_accounts = get_accounts_by_numbers(DAVRON_ACCOUNTS, company)
-
-	davron_items = frappe.db.sql("""
-		SELECT
-			IFNULL(pe.custom_tranzaksiya_turi, 'No Type') as tranzaksiya_turi,
-			pe.paid_to_account_currency as currency,
-			CASE
-				WHEN pe.paid_to_account_currency = 'UZS' THEN SUM(pe.received_amount)
-				ELSE SUM(pe.paid_amount)
-			END as total_amount,
-			COUNT(*) as pe_count
-		FROM `tabPayment Entry` pe
-		WHERE pe.posting_date = %s
-			AND pe.payment_type = 'Receive'
-			AND pe.paid_to IN %s
-			AND pe.company = %s
-			AND pe.docstatus = 1
-		GROUP BY pe.custom_tranzaksiya_turi, pe.paid_to_account_currency
-		ORDER BY pe.paid_to_account_currency, pe.custom_tranzaksiya_turi
-	""", (posting_date, davron_accounts, company), as_dict=True)
-
-	# Add source account for display
-	for item in davron_items:
-		item['source_account'] = get_account_by_number("1114" if item['currency'] == "USD" else "1115", company)
-
-	# 2. Get Internal Transfers (Davron → Aripov) for BOTH accounts
+	# 1. Get Internal Transfers (Davron → Aripov) for BOTH accounts
 	aripov_usd_account = get_account_by_number("1114", company)
 	aripov_uzs_account = get_account_by_number("1115", company)
 	aripov_accounts = [acc for acc in [aripov_usd_account, aripov_uzs_account] if acc]
@@ -512,7 +465,6 @@ def get_cash_distribution_data(posting_date, company):
 			})
 
 	return {
-		"davron_items": davron_items,
 		"transfer_items": transfer_items,
 		"rasxod_items": rasxod_items,
 		"category_items": category_items,
