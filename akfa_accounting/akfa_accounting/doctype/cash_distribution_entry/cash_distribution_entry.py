@@ -211,10 +211,14 @@ class CashDistributionEntry(Document):
 			"Account", {"account_number": "1115", "company": self.company}, "name"
 		)
 
-		# OFIS account (2112) absorbs any shortfall so Aripov cash never goes negative
+		# OFIS account (2112) absorbs any shortfall so Aripov cash never goes negative.
+		# 2112 is a Payable account, so the JE row needs the supplier linked to it.
 		ofis_account = frappe.db.get_value(
 			"Account", {"account_number": "2112", "company": self.company}, "name"
 		)
+		ofis_supplier = frappe.db.get_value(
+			"Party Account", {"parenttype": "Supplier", "account": ofis_account}, "parent"
+		) if ofis_account else None
 
 		# Aripov cash balances BEFORE this JE (account currency: 1114 in USD, 1115 in UZS)
 		from erpnext.accounts.utils import get_balance_on
@@ -281,8 +285,12 @@ class CashDistributionEntry(Document):
 		if shortfall_usd_total > 0:
 			if not ofis_account:
 				frappe.throw(_("Account 2112 (Creditors OFIS) not found"))
+			if not ofis_supplier:
+				frappe.throw(_("No Supplier is linked to account {0}").format(ofis_account))
 			je.append("accounts", {
 				"account": ofis_account,
+				"party_type": "Supplier",
+				"party": ofis_supplier,
 				"account_currency": "USD",
 				"exchange_rate": usd_exchange_rate,
 				"debit_in_account_currency": 0,
