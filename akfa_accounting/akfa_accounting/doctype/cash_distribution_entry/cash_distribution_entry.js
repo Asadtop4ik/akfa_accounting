@@ -2,6 +2,13 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Cash Distribution Entry", {
+	setup(frm) {
+		// Only allow suppliers in the "Zavodlar" supplier group
+		frm.set_query("supplier", "distribution_details", function() {
+			return { filters: { supplier_group: "Zavodlar" } };
+		});
+	},
+
 	refresh(frm) {
 		// Add custom button to fetch data
 		if (frm.doc.docstatus === 0) {

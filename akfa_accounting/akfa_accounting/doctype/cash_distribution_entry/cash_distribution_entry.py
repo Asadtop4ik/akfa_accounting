@@ -42,10 +42,21 @@ def get_exchange_rate_with_fallback(posting_date):
 class CashDistributionEntry(Document):
 	def validate(self):
 		self.validate_exchange_rate()
+		self.validate_supplier_group()
 		self.set_party_currency()
 		self.set_distribution_accounts()
 		self.calculate_totals()
 		self.validate_difference()
+
+	def validate_supplier_group(self):
+		"""Only suppliers in the 'Zavodlar' supplier group are allowed"""
+		for row in self.distribution_details:
+			if row.supplier:
+				group = frappe.db.get_value("Supplier", row.supplier, "supplier_group")
+				if group != "Zavodlar":
+					frappe.throw(
+						_("Supplier {0} is not in the 'Zavodlar' supplier group").format(row.supplier)
+					)
 
 	def validate_exchange_rate(self):
 		"""Check if exchange rate exists for the posting date.
@@ -218,6 +229,7 @@ class CashDistributionEntry(Document):
 		je.company = self.company
 		je.multi_currency = 1
 		je.user_remark = _("Cash Distribution Entry: {0}").format(self.name)
+		je.custom_cash_distribution_entry = self.name
 		
 		# Calculate exchange rates for JE
 		usd_exchange_rate = flt(exchange_rate) if company_currency == "UZS" else 1
