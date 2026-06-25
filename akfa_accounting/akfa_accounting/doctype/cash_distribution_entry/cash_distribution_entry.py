@@ -210,7 +210,17 @@ class CashDistributionEntry(Document):
 		aripov_uzs_account = frappe.db.get_value(
 			"Account", {"account_number": "1115", "company": self.company}, "name"
 		)
-		
+
+		# OFIS account (2112) absorbs any shortfall so Aripov cash never goes negative
+		ofis_account = frappe.db.get_value(
+			"Account", {"account_number": "2112", "company": self.company}, "name"
+		)
+
+		# Aripov cash balances BEFORE this JE (account currency: 1114 in USD, 1115 in UZS)
+		from erpnext.accounts.utils import get_balance_on
+		avail_usd = flt(get_balance_on(account=aripov_usd_account, date=self.posting_date)) if aripov_usd_account else 0
+		avail_uzs = flt(get_balance_on(account=aripov_uzs_account, date=self.posting_date)) if aripov_uzs_account else 0
+
 		# Calculate totals by payment currency
 		total_usd_distributed = sum(
 			flt(item.amount) for item in self.distribution_details if item.currency == "USD"
@@ -235,26 +245,50 @@ class CashDistributionEntry(Document):
 		usd_exchange_rate = flt(exchange_rate) if company_currency == "UZS" else 1
 		uzs_exchange_rate = 1 if company_currency == "UZS" else (1 / flt(exchange_rate) if exchange_rate else 1)
 		
-		# Row 1: Credit Aripov USD account (money going out)
+		# Credit Aripov cash up to its available balance; route the shortfall to 2112.
+		shortfall_usd_total = 0  # combined shortfall credited to 2112 (in USD)
+
+		# Row 1: Credit Aripov USD account (capped at available USD balance)
 		if total_usd_distributed > 0 and aripov_usd_account:
+			credit_1114 = min(total_usd_distributed, max(avail_usd, 0))
+			if credit_1114 > 0:
+				je.append("accounts", {
+					"account": aripov_usd_account,
+					"account_currency": "USD",
+					"exchange_rate": usd_exchange_rate,
+					"debit_in_account_currency": 0,
+					"credit_in_account_currency": credit_1114,
+				})
+			shortfall_usd_total += total_usd_distributed - credit_1114
+
+		# Row 2: Credit Aripov UZS account (capped at available UZS balance)
+		if total_uzs_distributed > 0 and aripov_uzs_account:
+			credit_1115 = min(total_uzs_distributed, max(avail_uzs, 0))
+			if credit_1115 > 0:
+				je.append("accounts", {
+					"account": aripov_uzs_account,
+					"account_currency": "UZS",
+					"exchange_rate": uzs_exchange_rate,
+					"debit_in_account_currency": 0,
+					"credit_in_account_currency": credit_1115,
+				})
+			shortfall_uzs = total_uzs_distributed - credit_1115
+			if shortfall_uzs > 0:
+				# Convert UZS shortfall to USD at the posting date rate (2112 is a USD account)
+				shortfall_usd_total += flt(shortfall_uzs) / flt(exchange_rate) if exchange_rate else 0
+
+		# Shortfall row: Credit 2112 (Creditors OFIS, USD)
+		if shortfall_usd_total > 0:
+			if not ofis_account:
+				frappe.throw(_("Account 2112 (Creditors OFIS) not found"))
 			je.append("accounts", {
-				"account": aripov_usd_account,
+				"account": ofis_account,
 				"account_currency": "USD",
 				"exchange_rate": usd_exchange_rate,
 				"debit_in_account_currency": 0,
-				"credit_in_account_currency": total_usd_distributed,
+				"credit_in_account_currency": shortfall_usd_total,
 			})
-		
-		# Row 2: Credit Aripov UZS account (money going out)
-		if total_uzs_distributed > 0 and aripov_uzs_account:
-			je.append("accounts", {
-				"account": aripov_uzs_account,
-				"account_currency": "UZS",
-				"exchange_rate": uzs_exchange_rate,
-				"debit_in_account_currency": 0,
-				"credit_in_account_currency": total_uzs_distributed,
-			})
-		
+
 		# Group distributions by supplier and party_currency
 		# Key: (supplier, party_currency, payment_currency)
 		supplier_groups = {}
