@@ -504,11 +504,12 @@ def get_cash_distribution_data(posting_date, company):
 					total_usd = flt(r.total)
 				elif r.currency == "UZS":
 					total_uzs = flt(r.total)
-		category_items.append({
-			"category": cat,
-			"total_usd": total_usd,
-			"total_uzs": total_uzs,
-		})
+		if total_usd or total_uzs:
+			category_items.append({
+				"category": cat,
+				"total_usd": total_usd,
+				"total_uzs": total_uzs,
+			})
 
 	return {
 		"davron_items": davron_items,
