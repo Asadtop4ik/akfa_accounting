@@ -12,6 +12,13 @@ HAMIDULLA_MODES = {
 	'USD': 'Наличный USD H',
 	'UZS': 'Наличный UZS H'
 }
+UZS_DISTRIBUTION_ROUNDING_FACTOR = 1000
+
+
+def round_uzs_distribution_amount(amount):
+	"""Round UZS distribution amounts to the nearest 1,000 UZS."""
+	amount = flt(amount)
+	return flt(((amount + (UZS_DISTRIBUTION_ROUNDING_FACTOR / 2)) // UZS_DISTRIBUTION_ROUNDING_FACTOR) * UZS_DISTRIBUTION_ROUNDING_FACTOR)
 
 
 def get_exchange_rate_with_fallback(posting_date):
@@ -324,7 +331,7 @@ class CashDistributionEntry(Document):
 					amount_in_party_currency = flt(amount) / flt(exchange_rate)
 				elif payment_currency == "USD" and party_currency == "UZS":
 					# Pay in USD, supplier is UZS → convert USD to UZS
-					amount_in_party_currency = flt(amount) * flt(exchange_rate)
+					amount_in_party_currency = round_uzs_distribution_amount(flt(amount) * flt(exchange_rate))
 				else:
 					amount_in_party_currency = amount
 			else:
