@@ -61,18 +61,21 @@
             "fieldname": "balance",
             "fieldtype": "Currency",
             "label": "Balance",
+            "options": "USD",
             "read_only": 1
         },
         {
             "fieldname": "total_amount",
             "fieldtype": "Currency",
             "label": "Total Amount",
+            "options": "USD",
             "read_only": 1
         },
         {
             "fieldname": "qoldi",
             "fieldtype": "Currency",
             "label": "Қолди",
+            "options": "USD",
             "read_only": 1
         },
         {
