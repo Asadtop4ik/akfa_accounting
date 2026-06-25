@@ -96,14 +96,10 @@ class CashDistributionEntry(Document):
 			)
 
 	def set_party_currency(self):
-		"""Set party_currency from Party Financial Defaults"""
+		"""Set party_currency from the Supplier's billing currency"""
 		for row in self.distribution_details:
-			if row.supplier and self.company and not row.party_currency:
-				party_currency = frappe.db.get_value(
-					"Party Financial Defaults",
-					{"party_type": "Supplier", "party": row.supplier, "company": self.company},
-					"currency"
-				)
+			if row.supplier:
+				party_currency = frappe.db.get_value("Supplier", row.supplier, "default_currency")
 				if party_currency:
 					row.party_currency = party_currency
 
@@ -162,13 +158,15 @@ class CashDistributionEntry(Document):
 	def validate_difference(self):
 		"""Ensure total distributed doesn't exceed Aripov total"""
 		if self.docstatus == 1:
-			if flt(self.difference_usd) < 0:
+			# Round to 2 decimals: distributed amounts are entered at currency precision,
+			# while Aripov totals carry full conversion precision (avoid false rounding errors)
+			if flt(self.difference_usd, 2) < 0:
 				frappe.throw(
 					_("USD: Total Distributed ({0}) cannot exceed Aripov Total ({1}). Difference: {2}").format(
 						self.total_distributed_usd, self.aripov_total_usd, self.difference_usd
 					)
 				)
-			if flt(self.difference_uzs) < 0:
+			if flt(self.difference_uzs, 2) < 0:
 				frappe.throw(
 					_("UZS: Total Distributed ({0}) cannot exceed Aripov Total ({1}). Difference: {2}").format(
 						self.total_distributed_uzs, self.aripov_total_uzs, self.difference_uzs

@@ -176,24 +176,20 @@ frappe.ui.form.on("Cash Distribution Detail", {
 	supplier(frm, cdt, cdn) {
 		let row = frappe.get_doc(cdt, cdn);
 		if (row.supplier && frm.doc.company) {
-			// Fetch party_currency from Party Financial Defaults
+			// Fetch party_currency from the Supplier's billing currency
 			frappe.call({
 				method: "frappe.client.get_value",
 				args: {
-					doctype: "Party Financial Defaults",
-					filters: {
-						party_type: "Supplier",
-						party: row.supplier,
-						company: frm.doc.company
-					},
-					fieldname: "currency"
+					doctype: "Supplier",
+					filters: { name: row.supplier },
+					fieldname: "default_currency"
 				},
 				callback: function(r) {
-					if (r.message && r.message.currency) {
-						frappe.model.set_value(cdt, cdn, "party_currency", r.message.currency);
+					if (r.message && r.message.default_currency) {
+						frappe.model.set_value(cdt, cdn, "party_currency", r.message.default_currency);
 
 						// Set creditors account based on party_currency
-						let account_number = r.message.currency === "USD" ? "2110" : "2111";
+						let account_number = r.message.default_currency === "USD" ? "2110" : "2111";
 						frappe.call({
 							method: "frappe.client.get_value",
 							args: {
