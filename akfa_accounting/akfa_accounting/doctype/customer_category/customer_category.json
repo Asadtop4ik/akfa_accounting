@@ -7,8 +7,7 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "category_name",
-  "customers"
+  "category_name"
  ],
  "fields": [
   {
@@ -18,13 +17,6 @@
    "label": "Kategoriya Nomi",
    "reqd": 1,
    "unique": 1
-  },
-  {
-   "fieldname": "customers",
-   "fieldtype": "Table",
-   "label": "Customerlar",
-   "options": "Customer Category Item",
-   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,

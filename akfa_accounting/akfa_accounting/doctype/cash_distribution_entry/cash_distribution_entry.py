@@ -479,9 +479,9 @@ def get_cash_distribution_data(posting_date, company):
 	category_items = []
 	for cat in frappe.get_all("Customer Category", pluck="name"):
 		customers = frappe.get_all(
-			"Customer Category Item",
-			filters={"parent": cat},
-			pluck="customer",
+			"Customer",
+			filters={"custom_customer_category": cat},
+			pluck="name",
 		)
 		total_usd = total_uzs = 0
 		if customers:
