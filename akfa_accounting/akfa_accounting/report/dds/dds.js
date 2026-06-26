@@ -15,14 +15,6 @@ frappe.query_reports["DDS"] = {
             "reqd": 1
         },
         {
-            "fieldname": "currency",
-            "label": __("Валюта"),
-            "fieldtype": "Link",
-            "options": "Currency",
-            "default": "UZS",
-            "reqd": 1
-        },
-        {
             "fieldname": "mode_of_payment",
             "label": __("Способ оплаты"),
             "fieldtype": "Link",

@@ -81,6 +81,12 @@ def get_data(filters):
 
         info = resolve_transaction_info(row, pe_info, je_info, cash_accounts)
 
+        # Начальный остаток (Temporary Opening) — Прочие emas, opening balansga qo'sh
+        if info["category"] == "opening":
+            opening_balance += kirim - chiqim
+            balance += kirim - chiqim
+            continue
+
         # Category filter
         if filter_category and info["category"] != filter_category:
             balance += kirim - chiqim
@@ -116,7 +122,7 @@ def get_data(filters):
             "remarks": get_remarks(row, pe_info, je_remarks),
             "voucher_type": row.voucher_type,
             "voucher_no": row.voucher_no,
-            "currency": filters.get("currency", "UZS"),
+            "currency": row.account_currency,
             "kirim": kirim,
             "chiqim": chiqim,
         })
@@ -149,21 +155,14 @@ def get_cash_accounts(filters):
 def get_opening_balance(cash_accounts, filters):
     placeholders = ", ".join(["%s"] * len(cash_accounts))
 
-    currency_filter = ""
-    currency_param = tuple()
-    if filters.get("currency"):
-        currency_filter = "AND account_currency = %s"
-        currency_param = (filters["currency"],)
-
     result = frappe.db.sql("""
         SELECT IFNULL(SUM(debit_in_account_currency) - SUM(credit_in_account_currency), 0)
         FROM `tabGL Entry`
         WHERE account IN ({placeholders})
           AND posting_date < %s
           AND is_cancelled = 0
-          {currency_filter}
-    """.format(placeholders=placeholders, currency_filter=currency_filter),
-        tuple(cash_accounts) + (filters["from_date"],) + currency_param
+    """.format(placeholders=placeholders),
+        tuple(cash_accounts) + (filters["from_date"],)
     )
 
     return flt(result[0][0]) if result else 0
@@ -172,26 +171,19 @@ def get_opening_balance(cash_accounts, filters):
 def get_transactions(cash_accounts, filters):
     placeholders = ", ".join(["%s"] * len(cash_accounts))
 
-    currency_filter = ""
-    currency_param = tuple()
-    if filters.get("currency"):
-        currency_filter = "AND account_currency = %s"
-        currency_param = (filters["currency"],)
-
     return frappe.db.sql("""
         SELECT
             posting_date, voucher_type, voucher_no,
             party_type, party, against,
             debit_in_account_currency, credit_in_account_currency,
-            account
+            account, account_currency
         FROM `tabGL Entry`
         WHERE account IN ({placeholders})
           AND posting_date BETWEEN %s AND %s
           AND is_cancelled = 0
-          {currency_filter}
         ORDER BY posting_date, creation
-    """.format(placeholders=placeholders, currency_filter=currency_filter),
-        tuple(cash_accounts) + (filters["from_date"], filters["to_date"]) + currency_param,
+    """.format(placeholders=placeholders),
+        tuple(cash_accounts) + (filters["from_date"], filters["to_date"]),
         as_dict=True
     )
 
@@ -289,6 +281,8 @@ def resolve_transaction_info(row, pe_info, je_info, cash_accounts):
         for acc in je_info[row.voucher_no]:
             if acc.account in cash_accounts:
                 continue
+            if acc.account_type == "Temporary":
+                return {"description": "Начальный остаток", "category": "opening", "party_type": None, "party": None}
             if acc.party_type and acc.party:
                 party_name = get_party_name(acc.party_type, acc.party)
                 return {
@@ -313,6 +307,8 @@ def resolve_transaction_info(row, pe_info, je_info, cash_accounts):
 
         acc_info = frappe.db.get_value("Account", against_account, ["account_name", "root_type", "account_type"], as_dict=True)
         if acc_info:
+            if acc_info.account_type == "Temporary":
+                return {"description": "Начальный остаток", "category": "opening", "party_type": None, "party": None}
             if acc_info.root_type == "Expense":
                 return {"description": f"Расходы: {acc_info.account_name}", "category": "expense", "party_type": None, "party": None}
             if acc_info.root_type == "Equity":
