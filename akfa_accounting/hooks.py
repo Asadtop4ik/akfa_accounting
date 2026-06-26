@@ -27,7 +27,7 @@ fixtures = [
 	},
 	{
 		"dt": "Property Setter",
-		"filters": [["doc_type", "in", ["Project", "Vehicle", "Travel Request", "Expense Claim", "Expense Claim Detail", "Payment Entry"]]],
+		"filters": [["doc_type", "in", ["Project", "Vehicle", "Travel Request", "Expense Claim", "Expense Claim Detail", "Payment Entry", "Employee Group"]]],
 	},
 	{
 		"dt": "List View Settings",
@@ -40,10 +40,6 @@ fixtures = [
 	{
 		"dt": "Workspace",
 		"filters": [["module", "=", "akfa_accounting"]],
-	},
-	{
-		"dt": "Employee Group",
-		"filters": [["name", "in", ["Import"]]],
 	},
 ]
 
