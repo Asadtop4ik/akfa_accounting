@@ -1,6 +1,8 @@
 # Copyright (c) 2025, Asadbek and contributors
 # For license information, please see license.txt
 
+import json
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -444,43 +446,39 @@ def get_cash_distribution_data(posting_date, company):
 			ORDER BY pe.name
 		""", (posting_date, aripov_accounts, company), as_dict=True)
 
-	# 3. Get Hamidulla Kassa Rasxod (BOTH USD and UZS, convert UZS to USD)
+	# 3. Get Hamidulla Kassa Rasxod (BOTH USD and UZS modes)
+	# Only sum items where rasxod_podochot == "Расход" AND party / party_type are empty
+	# (party-bound expenses are recorded elsewhere, not as Hamidulla rasxod).
+	# items_data stores per-item paid_amount_usd already converted to USD on save.
 	rasxod_items = []
-
-	# Get USD Rasxod
-	usd_rasxod = frappe.db.sql("""
-		SELECT
-			kr.name as kassa_rasxod,
-			kr.posting_date,
-			kr.total_amount as amount_usd,
-			'USD' as original_currency
+	kr_rows = frappe.db.sql("""
+		SELECT kr.name, kr.posting_date, kr.items_data
 		FROM `tabKassa Rasxod` kr
 		WHERE kr.posting_date = %s
-			AND kr.mode_of_payment = %s
+			AND kr.mode_of_payment IN %s
 			AND kr.docstatus = 1
 			AND IFNULL(kr.custom_is_distributed, 0) = 0
 		ORDER BY kr.posting_date
-	""", (posting_date, HAMIDULLA_MODES['USD']), as_dict=True)
+	""", (posting_date, tuple(HAMIDULLA_MODES.values())), as_dict=True)
 
-	# Get UZS Rasxod - total_amount is already in USD (converted in Kassa Rasxod)
-	uzs_rasxod = frappe.db.sql("""
-		SELECT
-			kr.name as kassa_rasxod,
-			kr.posting_date,
-			kr.total_amount as amount_usd,
-			'UZS' as original_currency
-		FROM `tabKassa Rasxod` kr
-		WHERE kr.posting_date = %s
-			AND kr.mode_of_payment = %s
-			AND kr.docstatus = 1
-			AND IFNULL(kr.custom_is_distributed, 0) = 0
-		ORDER BY kr.posting_date
-	""", (posting_date, HAMIDULLA_MODES['UZS']), as_dict=True)
-
-	# total_amount is already converted to USD in Kassa Rasxod doctype
-	# No additional conversion needed
-
-	rasxod_items = usd_rasxod + uzs_rasxod
+	for kr in kr_rows:
+		amount_usd = 0
+		if kr.items_data:
+			try:
+				items = json.loads(kr.items_data)
+			except (json.JSONDecodeError, TypeError):
+				items = []
+			for item in items:
+				if (item.get("rasxod_podochot") == "Расход"
+						and not item.get("party")
+						and not item.get("party_type")):
+					amount_usd += flt(item.get("paid_amount_usd"))
+		if amount_usd:
+			rasxod_items.append({
+				"kassa_rasxod": kr.name,
+				"posting_date": kr.posting_date,
+				"amount_usd": amount_usd,
+			})
 
 	# 4. Get BOTH account balances
 	from erpnext.accounts.utils import get_balance_on

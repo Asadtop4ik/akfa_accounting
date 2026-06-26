@@ -119,6 +119,7 @@
         {
             "fieldname": "rasxod_items",
             "fieldtype": "Table",
+            "hidden": 1,
             "label": "Hamidulla Rasxod",
             "options": "Cash Distribution Rasxod Item",
             "read_only": 1
