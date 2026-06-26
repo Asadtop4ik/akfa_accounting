@@ -41,6 +41,10 @@ fixtures = [
 		"dt": "Workspace",
 		"filters": [["module", "=", "akfa_accounting"]],
 	},
+	{
+		"dt": "Employee Group",
+		"filters": [["name", "in", ["Import"]]],
+	},
 ]
 
 permission_query_conditions = {
