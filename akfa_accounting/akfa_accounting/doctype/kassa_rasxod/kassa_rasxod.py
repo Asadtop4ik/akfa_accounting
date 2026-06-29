@@ -239,38 +239,13 @@ def get_employees_by_group(employee_group):
     """, employee_group, as_dict=True)
 
 
-def _get_usd_exchange_rate(to_currency, posting_date=None):
-    """USD -> to_currency rate for the date, fallback to latest available."""
-    if not to_currency or to_currency == "USD":
-        return 1
-
-    rate = None
-    if posting_date:
-        rate = frappe.db.get_value(
-            "Currency Exchange",
-            {"from_currency": "USD", "to_currency": to_currency, "date": posting_date},
-            "exchange_rate"
-        )
-
-    if not rate:
-        latest = frappe.db.sql("""
-            SELECT exchange_rate
-            FROM `tabCurrency Exchange`
-            WHERE from_currency = 'USD'
-                AND to_currency = %s
-                AND date <= %s
-            ORDER BY date DESC
-            LIMIT 1
-        """, (to_currency, posting_date or frappe.utils.nowdate()), as_dict=True)
-        if latest:
-            rate = latest[0].exchange_rate
-
-    return frappe.utils.flt(rate) or 1
-
-
 @frappe.whitelist()
 def get_mode_of_payment_balance(mode_of_payment, posting_date=None):
-    """Get account balance for Mode of Payment, normalized to USD."""
+    """Get account balance for Mode of Payment, in the account's own currency.
+
+    Display fields (balance, total_amount, qoldi) follow the mode currency:
+    USD mode -> USD, UZS modes -> UZS. So the native balance matches the display.
+    """
     if not mode_of_payment:
         return 0
 
@@ -288,16 +263,7 @@ def get_mode_of_payment_balance(mode_of_payment, posting_date=None):
 
     from erpnext.accounts.utils import get_balance_on
 
-    balance = get_balance_on(account=account, date=posting_date) or 0
-
-    # Balance comes back in the account's own currency. The rest of Kassa Rasxod
-    # (total_amount, qoldi) works in USD, so convert non-USD balances to USD.
-    account_currency = frappe.db.get_value("Account", account, "account_currency")
-    if account_currency and account_currency != "USD":
-        rate = _get_usd_exchange_rate(account_currency, posting_date)
-        balance = frappe.utils.flt(balance) / rate if rate else 0
-
-    return balance
+    return get_balance_on(account=account, date=posting_date) or 0
 
 
 @frappe.whitelist()

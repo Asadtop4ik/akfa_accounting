@@ -22,6 +22,17 @@
 		return frm.doc.mode_of_payment === 'Перечисление UZS';
 	};
 
+	// Amount display helpers — space thousand separators, dot decimal
+	ns.fmt_amount = function (v) {
+		v = parseFloat(v) || 0;
+		let parts = String(v).split('.');
+		parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+		return parts.join('.');
+	};
+	ns.parse_amount = function (s) {
+		return parseFloat(String(s).replace(/\s/g, '')) || 0;
+	};
+
 	// Load/save items_data
 	ns.load_custom_table = function (frm) {
 		if (frm.doc.items_data) {

@@ -238,12 +238,12 @@
 			if (usd_mode) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-usd" value="${item.paid_amount_usd || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-usd" value="${ns.fmt_amount(item.paid_amount_usd)}">
 				</td>`;
 			} else if (mode_selected) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-uzs" value="${item.paid_amount_uzs || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-uzs" value="${ns.fmt_amount(item.paid_amount_uzs)}">
 				</td>
 				<td>
 					<input type="number" class="item-currency-exchange-rate" value="${item.currency_exchange_rate || frm.doc.currency_exchange_rate || 0}" step="0.01">
@@ -290,12 +290,12 @@
 			if (usd_mode) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-usd" value="${item.paid_amount_usd || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-usd" value="${ns.fmt_amount(item.paid_amount_usd)}">
 				</td>`;
 			} else if (mode_selected) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-uzs" value="${item.paid_amount_uzs || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-uzs" value="${ns.fmt_amount(item.paid_amount_uzs)}">
 				</td>
 				<td>
 					<input type="number" class="item-currency-exchange-rate" value="${item.currency_exchange_rate || frm.doc.currency_exchange_rate || 0}" step="0.01">
@@ -329,12 +329,12 @@
 			if (usd_mode) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-usd" value="${item.paid_amount_usd || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-usd" value="${ns.fmt_amount(item.paid_amount_usd)}">
 				</td>`;
 			} else if (mode_selected) {
 				row_html += `
 				<td>
-					<input type="number" class="item-paid-amount-uzs" value="${item.paid_amount_uzs || 0}" step="0.01">
+					<input type="text" inputmode="decimal" class="item-paid-amount-uzs" value="${ns.fmt_amount(item.paid_amount_uzs)}">
 				</td>
 				<td>
 					<input type="number" class="item-currency-exchange-rate" value="${item.currency_exchange_rate || frm.doc.currency_exchange_rate || 0}" step="0.01">

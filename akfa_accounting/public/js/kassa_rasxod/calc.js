@@ -59,9 +59,12 @@
 
 	ns.get_account_balance = function (frm) {
 		if (!frm.doc.mode_of_payment) {
+			frm.set_value('display_currency', 'USD');
 			frm.set_value('balance', 0);
 			return;
 		}
+
+		frm.set_value('display_currency', ns.is_usd_mode(frm) ? 'USD' : 'UZS');
 
 		frappe.call({
 			method: 'akfa_accounting.akfa_accounting.doctype.kassa_rasxod.kassa_rasxod.get_mode_of_payment_balance',
@@ -101,27 +104,24 @@
 		let koplashga_plus = 0;
 
 		let usd_mode = ns.is_usd_mode(frm);
-		let global_rate = frm.doc.currency_exchange_rate || 1;
+
+		// Display currency follows the mode: USD mode → USD, else UZS.
+		// Totals are shown in this currency (display-only; JE creation uses items_data).
+		if (frm.doc.mode_of_payment) {
+			frm.doc.display_currency = usd_mode ? 'USD' : 'UZS';
+		}
 
 		ns.items_data.forEach(function (item) {
-			let summa_usd;
-			if (usd_mode) {
-				summa_usd = item.paid_amount_usd || 0;
-			} else {
-				// UZS mode — convert to USD using per-row rate (fallback to global)
-				let row_rate = item.currency_exchange_rate || global_rate;
-				let uzs_amount = item.paid_amount_uzs || 0;
-				summa_usd = row_rate ? uzs_amount / row_rate : 0;
-			}
+			let summa = usd_mode ? (item.paid_amount_usd || 0) : (item.paid_amount_uzs || 0);
 
 			if (item.rasxod_podochot === ns.TIP_RASXOD) {
 				if (!item.party_type || !item.party) {
-					total_amount += summa_usd;
+					total_amount += summa;
 				}
 			} else if (item.rasxod_podochot === ns.TIP_PODOCHOT_PRIXOD) {
-				podochot_prixod_sum += summa_usd;
+				podochot_prixod_sum += summa;
 			} else if (item.rasxod_podochot === ns.TIP_PODOCHOT_RASXOD) {
-				total_amount += summa_usd;
+				total_amount += summa;
 			} else if (item.rasxod_podochot === ns.TIP_KOPLASHGA) {
 				let has_party1 = item.party_type && item.party;
 				let has_party2 = item.party_type_2 && item.party_2;
@@ -129,9 +129,9 @@
 				if (has_party1 && has_party2) {
 					// Both filled — no effect on balance
 				} else if (has_party1 && !has_party2) {
-					koplashga_plus += summa_usd;
+					koplashga_plus += summa;
 				} else if (!has_party1 && has_party2) {
-					total_amount += summa_usd;
+					total_amount += summa;
 				}
 			}
 		});

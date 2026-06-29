@@ -66,7 +66,8 @@
 		});
 
 		$row.find('.item-paid-amount-uzs').on('change', function () {
-			let uzs = parseFloat($(this).val()) || 0;
+			let uzs = ns.parse_amount($(this).val());
+			$(this).val(ns.fmt_amount(uzs));
 			ns.items_data[idx].paid_amount_uzs = uzs;
 			let row_rate = ns.items_data[idx].currency_exchange_rate || frm.doc.currency_exchange_rate;
 			if (row_rate) {
@@ -76,7 +77,8 @@
 		});
 
 		$row.find('.item-paid-amount-usd').on('change', function () {
-			let usd = parseFloat($(this).val()) || 0;
+			let usd = ns.parse_amount($(this).val());
+			$(this).val(ns.fmt_amount(usd));
 			ns.items_data[idx].paid_amount_usd = usd;
 			ns.save_items_data(frm);
 		});

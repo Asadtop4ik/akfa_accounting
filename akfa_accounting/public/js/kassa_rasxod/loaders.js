@@ -76,7 +76,7 @@
 				$select.append('<option value="">-</option>');
 				if (r.message && r.message.length > 0) {
 					r.message.forEach(function (item) {
-						let display = item.employee_name ? `${item.employee} - ${item.employee_name}` : item.employee;
+						let display = item.employee_name || item.employee;
 						let selected = item.employee === selected_value ? 'selected' : '';
 						$select.append(`<option value="${item.employee}" ${selected}>${display}</option>`);
 					});
