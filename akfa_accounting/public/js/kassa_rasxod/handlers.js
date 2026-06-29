@@ -65,6 +65,10 @@
 			ns.save_items_data(frm);
 		});
 
+		$row.find('.item-paid-amount-uzs, .item-paid-amount-usd').on('input', function () {
+			ns.live_group(this);
+		});
+
 		$row.find('.item-paid-amount-uzs').on('change', function () {
 			let uzs = ns.parse_amount($(this).val());
 			$(this).val(ns.fmt_amount(uzs));

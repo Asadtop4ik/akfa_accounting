@@ -33,6 +33,29 @@
 		return parseFloat(String(s).replace(/\s/g, '')) || 0;
 	};
 
+	// Live grouping while typing — keeps caret position, allows one dot decimal
+	ns.live_group = function (el) {
+		let caret = el.selectionStart;
+		let left = el.value.slice(0, caret).replace(/[^\d.]/g, '').length;
+
+		let clean = el.value.replace(/[^\d.]/g, '');
+		let dot = clean.indexOf('.');
+		if (dot !== -1) {
+			clean = clean.slice(0, dot + 1) + clean.slice(dot + 1).replace(/\./g, '');
+		}
+		let parts = clean.split('.');
+		parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+		let formatted = parts.join('.');
+		el.value = formatted;
+
+		let pos = 0, count = 0;
+		while (pos < formatted.length && count < left) {
+			if (/[\d.]/.test(formatted[pos])) count++;
+			pos++;
+		}
+		el.setSelectionRange(pos, pos);
+	};
+
 	// Load/save items_data
 	ns.load_custom_table = function (frm) {
 		if (frm.doc.items_data) {
