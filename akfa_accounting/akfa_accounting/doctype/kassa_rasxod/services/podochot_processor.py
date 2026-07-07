@@ -19,6 +19,22 @@ from akfa_accounting.akfa_accounting.doctype.kassa_rasxod.services.base_je_creat
 class PodochotProcessor(BaseJECreator):
     """Processor for Podochot prixod/rasxod Journal Entries"""
 
+    def _employee_payable_account(self):
+        """Employee creditor account by cash currency: 2120 (USD), 2121 (UZS)."""
+        account_number = "2121" if self.is_multi_currency else "2120"
+        account = frappe.db.get_value(
+            "Account",
+            {"account_number": account_number, "company": self.company},
+            "name",
+        )
+        if not account:
+            frappe.throw(
+                _("Employee creditor account {0} not found for company {1}").format(
+                    account_number, self.company
+                )
+            )
+        return account
+
     def process_podochot_prixod_item(self, item, idx):
         """
         Process Podochot prixod - Employee returns money to cash
@@ -39,8 +55,8 @@ class PodochotProcessor(BaseJECreator):
 
         # Debit Cash (money comes in)
         self._add_account_entry(je, self.cash_account, debit=amount)
-        # Credit Payable with Employee (reduces debt)
-        self._add_account_entry(je, self.default_payable_account, credit=amount,
+        # Credit Employee Creditor account (2120 USD / 2121 UZS)
+        self._add_account_entry(je, self._employee_payable_account(), credit=amount,
                                 party_type="Employee", party=employee)
 
         je.insert()
@@ -71,8 +87,8 @@ class PodochotProcessor(BaseJECreator):
         je = self._create_journal_entry()
         je.user_remark = f"Podochot Rasxod - Auto-created from Kassa Rasxod {self.doc.name}, Row #{idx}. {izoh}"
 
-        # Debit Payable with Employee (increases debt)
-        self._add_account_entry(je, self.default_payable_account, debit=amount,
+        # Debit Employee Creditor account (2120 USD / 2121 UZS)
+        self._add_account_entry(je, self._employee_payable_account(), debit=amount,
                                 party_type="Employee", party=employee)
         # Credit Cash (money goes out)
         self._add_account_entry(je, self.cash_account, credit=amount)
