@@ -63,6 +63,7 @@ frappe.ui.form.on("Cash Distribution Entry", {
 					// Set account balances
 					frm.set_value("aripov_usd_balance", r.message.aripov_usd_balance || 0);
 					frm.set_value("aripov_uzs_balance", r.message.aripov_uzs_balance || 0);
+					frm.set_value("kurs", r.message.exchange_rate || 0);
 
 					// Clear existing items
 					frm.clear_table("transfer_items");
@@ -161,6 +162,13 @@ frappe.ui.form.on("Cash Distribution Entry", {
 		});
 		frm.set_value("total_distributed_usd", total_distributed_usd);
 		frm.set_value("total_distributed_uzs", total_distributed_uzs);
+
+		// JAMI USD = har bir qatorning USD ekvivalenti yig'indisi (UZS ham konvert qilingan)
+		let jami_usd = 0;
+		(frm.doc.distribution_details || []).forEach(function(item) {
+			jami_usd += flt(item.usd_ekvivalent);
+		});
+		frm.set_value("jami_usd", jami_usd);
 
 		// Difference = Aripov Total - Distributed (must be >= 0)
 		frm.set_value("difference_usd", aripov_total_usd - total_distributed_usd);
