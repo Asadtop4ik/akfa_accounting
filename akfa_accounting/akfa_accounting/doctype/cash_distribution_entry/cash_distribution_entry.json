@@ -28,7 +28,6 @@
         "section_break_totals",
         "aripov_total_usd",
         "total_distributed_usd",
-        "jami_usd",
         "difference_usd",
         "column_break_3",
         "aripov_total_uzs",
@@ -182,15 +181,6 @@
             "fieldname": "total_distributed_usd",
             "fieldtype": "Currency",
             "label": "Total Distributed (USD)",
-            "options": "USD",
-            "read_only": 1
-        },
-        {
-            "bold": 1,
-            "fieldname": "jami_usd",
-            "fieldtype": "Currency",
-            "label": "JAMI USD (barcha valyuta)",
-            "description": "Barcha qatorlar USD ekvivalenti (UZS ham konvert qilingan)",
             "options": "USD",
             "read_only": 1
         },

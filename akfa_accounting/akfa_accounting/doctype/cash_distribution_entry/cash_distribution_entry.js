@@ -17,6 +17,9 @@ frappe.ui.form.on("Cash Distribution Entry", {
 			});
 		}
 
+		// Grid footer: USD Ekvivalent jami (mavjud hujjatlar uchun ham)
+		render_usd_ekvivalent_total(frm);
+
 		// Show link to Journal Entries if exists
 		if (frm.doc.journal_entry) {
 			frm.add_custom_button(__("View Journal Entries"), function() {
@@ -163,12 +166,8 @@ frappe.ui.form.on("Cash Distribution Entry", {
 		frm.set_value("total_distributed_usd", total_distributed_usd);
 		frm.set_value("total_distributed_uzs", total_distributed_uzs);
 
-		// JAMI USD = har bir qatorning USD ekvivalenti yig'indisi (UZS ham konvert qilingan)
-		let jami_usd = 0;
-		(frm.doc.distribution_details || []).forEach(function(item) {
-			jami_usd += flt(item.usd_ekvivalent);
-		});
-		frm.set_value("jami_usd", jami_usd);
+		// Grid footer: USD Ekvivalent ustuni jami (UZS ham konvert qilingan)
+		render_usd_ekvivalent_total(frm);
 
 		// Difference = Aripov Total - Distributed (must be >= 0)
 		frm.set_value("difference_usd", aripov_total_usd - total_distributed_usd);
@@ -266,6 +265,27 @@ frappe.ui.form.on("Cash Distribution Detail", {
 		frm.trigger("calculate_totals");
 	}
 });
+
+function render_usd_ekvivalent_total(frm) {
+	let field = frm.fields_dict.distribution_details;
+	let grid = field && field.grid;
+	if (!grid || !grid.wrapper) return;
+
+	let total = 0;
+	(frm.doc.distribution_details || []).forEach(function(item) {
+		total += flt(item.usd_ekvivalent);
+	});
+
+	let $footer = grid.wrapper.find(".grid-footer");
+	if (!$footer.length) return;
+
+	let $el = $footer.find(".usd-ekv-total");
+	if (!$el.length) {
+		$el = $("<div class='usd-ekv-total' style='text-align:right; font-weight:bold; padding:6px 10px; color:#2c3e50;'></div>");
+		$footer.append($el);
+	}
+	$el.html(__("USD Ekvivalent jami: {0}", [format_currency(total, "USD")]));
+}
 
 function convert_uzs_to_usd(frm, cdt, cdn, uzs_amount) {
 	// Convert UZS to USD

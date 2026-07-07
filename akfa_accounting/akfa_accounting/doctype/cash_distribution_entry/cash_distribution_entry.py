@@ -160,16 +160,8 @@ class CashDistributionEntry(Document):
 		self.difference_usd = flt(self.aripov_total_usd) - flt(self.total_distributed_usd)
 		self.difference_uzs = flt(self.aripov_total_uzs) - flt(self.total_distributed_uzs)
 
-		# Day's exchange rate + grand total in USD (UZS rows converted to USD)
-		exchange_rate = get_exchange_rate_with_fallback(self.posting_date)
-		self.kurs = flt(exchange_rate)
-		jami_usd = 0
-		for item in self.distribution_details:
-			if item.currency == "USD":
-				jami_usd += flt(item.amount)
-			elif exchange_rate:
-				jami_usd += flt(item.amount) / flt(exchange_rate)
-		self.jami_usd = flt(jami_usd)
+		# Day's exchange rate (shown on form near distribution grid)
+		self.kurs = flt(get_exchange_rate_with_fallback(self.posting_date))
 
 		# Keep legacy fields for backward compatibility
 		self.total_received_usd = self.aripov_total_usd
