@@ -28,8 +28,8 @@ CATEGORY_LABELS = {
 
 def execute(filters=None):
     columns = get_columns()
-    data, expense_summaries = get_data(filters)
-    summary_html = get_summary_html(data, expense_summaries)
+    data, expense_summaries, employee_group_summaries = get_data(filters)
+    summary_html = get_summary_html(data, expense_summaries, employee_group_summaries)
     return columns, data, summary_html
 
 
@@ -47,10 +47,19 @@ def get_columns():
     ]
 
 
+def get_employee_group_map():
+    """Return {employee_id: group_name}. Har employee ko'pi bilan 1 guruhda."""
+    rows = frappe.get_all(
+        "Employee Group Table",
+        fields=["employee", "parent"],
+    )
+    return {r.employee: r.parent for r in rows if r.employee}
+
+
 def get_data(filters):
     cash_accounts = get_cash_accounts(filters)
     if not cash_accounts:
-        return [], {}
+        return [], {}, {}
 
     opening_balance = get_opening_balance(cash_accounts, filters)
     transactions = get_transactions(cash_accounts, filters)
@@ -71,6 +80,8 @@ def get_data(filters):
     filter_category = CATEGORY_MAP.get(category_filter_val)
 
     expense_summaries = {}
+    employee_group_summaries = {}
+    employee_group_map = get_employee_group_map()
     balance = opening_balance
     total_kirim = 0
     total_chiqim = 0
@@ -112,6 +123,14 @@ def get_data(filters):
             expense_summaries[desc]["kirim"] += kirim
             expense_summaries[desc]["chiqim"] += chiqim
 
+        # Xodimlarni employee group bo'yicha guruhlash
+        if info["category"] == "employee":
+            group = employee_group_map.get(info.get("party"), "Без группы")
+            if group not in employee_group_summaries:
+                employee_group_summaries[group] = {"kirim": 0, "chiqim": 0}
+            employee_group_summaries[group]["kirim"] += kirim
+            employee_group_summaries[group]["chiqim"] += chiqim
+
         data.append({
             "posting_date": row.posting_date,
             "account": row.account,
@@ -134,7 +153,7 @@ def get_data(filters):
         final_data[0]["_opening_balance"] = opening_balance
         final_data[-1]["_closing_balance"] = balance
 
-    return final_data, expense_summaries
+    return final_data, expense_summaries, employee_group_summaries
 
 
 def get_cash_accounts(filters):
@@ -333,7 +352,7 @@ def get_party_name(party_type, party):
     return party
 
 
-def get_summary_html(data, expense_summaries=None):
+def get_summary_html(data, expense_summaries=None, employee_group_summaries=None):
     if not data:
         return ""
 
@@ -415,6 +434,20 @@ def get_summary_html(data, expense_summaries=None):
                     <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{sub_chiqim}</td>
                 </tr>"""
 
+    # Сотрудники ostidagi employee group qatorlari (doim ko'rinadi)
+    employee_group_sub_rows = ""
+    if employee_group_summaries:
+        for group in sorted(employee_group_summaries, key=lambda g: (g == "Без группы", g)):
+            totals = employee_group_summaries[group]
+            grp_kirim = fmt(totals["kirim"]) if totals["kirim"] else "—"
+            grp_chiqim = fmt(totals["chiqim"]) if totals["chiqim"] else "—"
+            employee_group_sub_rows += f"""
+                <tr style="background-color: #f5f5f5;">
+                    <td style="padding: 8px 10px 8px 30px; border: 1px solid #ddd; font-style: italic;">{group}</td>
+                    <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{grp_kirim}</td>
+                    <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{grp_chiqim}</td>
+                </tr>"""
+
     expense_arrow = '<span id="dds-expense-arrow" style="margin-right: 5px; font-size: 10px;">&#9654;</span>' if expense_summaries else ""
     expense_cursor = "cursor: pointer;" if expense_summaries else ""
     expense_onclick = """onclick="(function(){
@@ -461,6 +494,7 @@ def get_summary_html(data, expense_summaries=None):
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{fmt(employee_kirim) if employee_kirim else '—'}</td>
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{fmt(employee_chiqim) if employee_chiqim else '—'}</td>
                 </tr>
+                {employee_group_sub_rows}
                 <tr>
                     <td style="padding: 10px; border: 1px solid #ddd;">Перемещения</td>
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{fmt(transfer_kirim) if transfer_kirim else '—'}</td>
