@@ -352,11 +352,11 @@ def get_party_name(party_type, party):
     return party
 
 
-def get_summary_html(data, expense_summaries=None, employee_group_summaries=None):
-    if not data:
-        return ""
+def compute_summary(data, expense_summaries=None, employee_group_summaries=None):
+    """Category bo'yicha kirim/chiqim yig'indilari + opening/closing. HTML va Excel export uchun umumiy."""
+    cats = {c: {"kirim": 0, "chiqim": 0} for c in
+            ("customer", "supplier", "expense", "dividend", "transfer", "employee", "other")}
 
-    # Opening va closing balancelarni data dan olish
     opening = 0
     closing_balance = 0
     for row in data:
@@ -365,54 +365,44 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
         if "_closing_balance" in row:
             closing_balance = flt(row["_closing_balance"])
 
-    customer_kirim = 0
-    customer_chiqim = 0
-    supplier_kirim = 0
-    supplier_chiqim = 0
-    expense_kirim = 0
-    expense_chiqim = 0
-    dividend_kirim = 0
-    dividend_chiqim = 0
-    transfer_kirim = 0
-    transfer_chiqim = 0
-    employee_kirim = 0
-    employee_chiqim = 0
-    other_kirim = 0
-    other_chiqim = 0
-
     for row in data:
         if row.get("is_total"):
             continue
-
         category = row.get("category") or "other"
-        kirim = flt(row.get("kirim"))
-        chiqim = flt(row.get("chiqim"))
+        if category not in cats:
+            category = "other"
+        cats[category]["kirim"] += flt(row.get("kirim"))
+        cats[category]["chiqim"] += flt(row.get("chiqim"))
 
-        if category == "customer":
-            customer_kirim += kirim
-            customer_chiqim += chiqim
-        elif category == "supplier":
-            supplier_kirim += kirim
-            supplier_chiqim += chiqim
-        elif category == "expense":
-            expense_kirim += kirim
-            expense_chiqim += chiqim
-        elif category == "dividend":
-            dividend_kirim += kirim
-            dividend_chiqim += chiqim
-        elif category == "transfer":
-            transfer_kirim += kirim
-            transfer_chiqim += chiqim
-        elif category == "employee":
-            employee_kirim += kirim
-            employee_chiqim += chiqim
-        else:
-            other_kirim += kirim
-            other_chiqim += chiqim
-
-    closing = opening + (customer_kirim + supplier_kirim + expense_kirim + dividend_kirim + transfer_kirim + employee_kirim + other_kirim) - (customer_chiqim + supplier_chiqim + expense_chiqim + dividend_chiqim + transfer_chiqim + employee_chiqim + other_chiqim)
+    total_kirim = sum(c["kirim"] for c in cats.values())
+    total_chiqim = sum(c["chiqim"] for c in cats.values())
+    closing = opening + total_kirim - total_chiqim
     if closing_balance:
         closing = closing_balance
+
+    return {
+        "opening": opening,
+        "closing": closing,
+        "cats": cats,
+        "expense_sub": expense_summaries or {},
+        "employee_sub": employee_group_summaries or {},
+    }
+
+
+def get_summary_html(data, expense_summaries=None, employee_group_summaries=None):
+    if not data:
+        return ""
+
+    s = compute_summary(data, expense_summaries, employee_group_summaries)
+    opening = s["opening"]
+    closing = s["closing"]
+    customer_kirim, customer_chiqim = s["cats"]["customer"]["kirim"], s["cats"]["customer"]["chiqim"]
+    supplier_kirim, supplier_chiqim = s["cats"]["supplier"]["kirim"], s["cats"]["supplier"]["chiqim"]
+    expense_kirim, expense_chiqim = s["cats"]["expense"]["kirim"], s["cats"]["expense"]["chiqim"]
+    dividend_kirim, dividend_chiqim = s["cats"]["dividend"]["kirim"], s["cats"]["dividend"]["chiqim"]
+    transfer_kirim, transfer_chiqim = s["cats"]["transfer"]["kirim"], s["cats"]["transfer"]["chiqim"]
+    employee_kirim, employee_chiqim = s["cats"]["employee"]["kirim"], s["cats"]["employee"]["chiqim"]
+    other_kirim, other_chiqim = s["cats"]["other"]["kirim"], s["cats"]["other"]["chiqim"]
 
     def fmt(val):
         return f"{flt(val):,.2f}"
@@ -532,3 +522,66 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
     """
 
     return html
+
+
+@frappe.whitelist()
+def export_dds_excel(filters):
+    """DDS'ni Excel qilib qaytaradi: 1-varaq Свод (summary), 2-varaq Транзакции (xom)."""
+    import json
+    import openpyxl
+    from io import BytesIO
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+
+    if isinstance(filters, str):
+        filters = json.loads(filters)
+
+    data, expense_summaries, employee_group_summaries = get_data(filters)
+    s = compute_summary(data, expense_summaries, employee_group_summaries)
+
+    # Свод varaqi — reportdagi tartibda
+    summary_rows = [["DDS", "Кирим", "Чиқим"]]
+    summary_rows.append(["Начальный остаток", None, s["opening"]])
+    for cat in ("customer", "supplier", "dividend", "employee", "transfer", "other"):
+        c = s["cats"][cat]
+        summary_rows.append([CATEGORY_LABELS[cat], c["kirim"], c["chiqim"]])
+        if cat == "employee":
+            for group in sorted(s["employee_sub"], key=lambda g: (g == "Без группы", g)):
+                t = s["employee_sub"][group]
+                summary_rows.append([f"    {group}", t["kirim"], t["chiqim"]])
+    exp = s["cats"]["expense"]
+    summary_rows.append(["Расходы", exp["kirim"], exp["chiqim"]])
+    for desc, t in s["expense_sub"].items():
+        name = desc.replace("Расходы: ", "") if desc.startswith("Расходы: ") else desc
+        summary_rows.append([f"    {name}", t["kirim"], t["chiqim"]])
+    summary_rows.append(["Конечный остаток", None, s["closing"]])
+
+    # Транзакции varaqi — xom qatorlar
+    txn_rows = [["Сана", "Касса счёт", "Кирим/Чиқим", "Категория", "Сумма", "Валюта", "Изоҳ", "Тип", "Документ"]]
+    for r in data:
+        txn_rows.append([
+            r.get("posting_date"), r.get("account"), r.get("direction"),
+            r.get("description"), r.get("summa"), r.get("currency"),
+            r.get("remarks"), r.get("voucher_type"), r.get("voucher_no"),
+        ])
+
+    def clean(cell):
+        if isinstance(cell, str):
+            return ILLEGAL_CHARACTERS_RE.sub("", cell)
+        return cell
+
+    wb = openpyxl.Workbook()
+    ws_summary = wb.active
+    ws_summary.title = "Свод"
+    for row in summary_rows:
+        ws_summary.append([clean(c) for c in row])
+
+    ws_txn = wb.create_sheet("Транзакции")
+    for row in txn_rows:
+        ws_txn.append([clean(c) for c in row])
+
+    bio = BytesIO()
+    wb.save(bio)
+
+    frappe.response["filecontent"] = bio.getvalue()
+    frappe.response["filename"] = "DDS.xlsx"
+    frappe.response["type"] = "binary"

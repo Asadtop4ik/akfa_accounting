@@ -46,6 +46,15 @@ frappe.query_reports["DDS"] = {
         }
     ],
 
+    "onload": function(report) {
+        report.page.add_inner_button(__("📥 Excel"), function() {
+            open_url_post(
+                "/api/method/akfa_accounting.akfa_accounting.report.dds.dds.export_dds_excel",
+                { filters: JSON.stringify(report.get_values()) }
+            );
+        });
+    },
+
     "formatter": function(value, row, column, data, default_formatter) {
         value = default_formatter(value, row, column, data);
 
