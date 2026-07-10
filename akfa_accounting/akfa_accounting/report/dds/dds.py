@@ -434,7 +434,7 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
                     <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{sub_chiqim}</td>
                 </tr>"""
 
-    # Сотрудники ostidagi employee group qatorlari (doim ko'rinadi)
+    # Сотрудники ostidagi employee group qatorlari (bosilganda ochiladi)
     employee_group_sub_rows = ""
     if employee_group_summaries:
         for group in sorted(employee_group_summaries, key=lambda g: (g == "Без группы", g)):
@@ -442,7 +442,7 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
             grp_kirim = fmt(totals["kirim"]) if totals["kirim"] else "—"
             grp_chiqim = fmt(totals["chiqim"]) if totals["chiqim"] else "—"
             employee_group_sub_rows += f"""
-                <tr style="background-color: #f5f5f5;">
+                <tr class="dds-employee-sub" style="display: none; background-color: #f5f5f5;">
                     <td style="padding: 8px 10px 8px 30px; border: 1px solid #ddd; font-style: italic;">{group}</td>
                     <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{grp_kirim}</td>
                     <td style="padding: 8px 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{grp_chiqim}</td>
@@ -458,6 +458,17 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
         for (var i = 0; i < rows.length; i++) { rows[i].style.display = visible ? 'none' : 'table-row'; }
         arrow.innerHTML = visible ? '&#9654;' : '&#9660;';
     })()" """ if expense_summaries else ""
+
+    employee_arrow = '<span id="dds-employee-arrow" style="margin-right: 5px; font-size: 10px;">&#9654;</span>' if employee_group_summaries else ""
+    employee_cursor = "cursor: pointer;" if employee_group_summaries else ""
+    employee_onclick = """onclick="(function(){
+        var rows = document.querySelectorAll('.dds-employee-sub');
+        var arrow = document.getElementById('dds-employee-arrow');
+        if (!rows.length) return;
+        var visible = rows[0].style.display !== 'none';
+        for (var i = 0; i < rows.length; i++) { rows[i].style.display = visible ? 'none' : 'table-row'; }
+        arrow.innerHTML = visible ? '&#9654;' : '&#9660;';
+    })()" """ if employee_group_summaries else ""
 
     html = f"""
     <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 5px;">
@@ -489,8 +500,8 @@ def get_summary_html(data, expense_summaries=None, employee_group_summaries=None
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{fmt(dividend_kirim) if dividend_kirim else '—'}</td>
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{fmt(dividend_chiqim) if dividend_chiqim else '—'}</td>
                 </tr>
-                <tr style="background-color: #fafafa;">
-                    <td style="padding: 10px; border: 1px solid #ddd;">Сотрудники</td>
+                <tr style="background-color: #fafafa; {employee_cursor}" {employee_onclick}>
+                    <td style="padding: 10px; border: 1px solid #ddd;">{employee_arrow}Сотрудники</td>
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #388e3c;">{fmt(employee_kirim) if employee_kirim else '—'}</td>
                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">{fmt(employee_chiqim) if employee_chiqim else '—'}</td>
                 </tr>
