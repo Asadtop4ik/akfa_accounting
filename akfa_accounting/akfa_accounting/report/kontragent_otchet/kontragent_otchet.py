@@ -40,6 +40,15 @@ def get_data(filters):
     party_type = filters.get("party_type")
     party = filters.get("party")
     currency_filter = filters.get("currency")
+    employee_group = filters.get("employee_group")
+
+    group_employees = None
+    if employee_group:
+        group_employees = set(frappe.get_all(
+            "Employee Group Table",
+            filters={"parent": employee_group},
+            pluck="employee",
+        ))
 
     opening = _aggregate_gl(party_type, party, to_date=from_date)
     period = _aggregate_gl(party_type, party, from_date=from_date, to_date=to_date)
@@ -55,9 +64,15 @@ def get_data(filters):
     )
 
     for pt, p in parties:
-        party_currency = _get_party_currency(pt, p)
-        if currency_filter and party_currency != currency_filter:
+        if group_employees is not None and (pt != "Employee" or p not in group_employees):
             continue
+
+        if currency_filter and not (
+            opening.get((pt, p, currency_filter)) or period.get((pt, p, currency_filter))
+        ):
+            continue
+
+        party_currency = currency_filter or _get_party_currency(pt, p)
 
         row = {"party_type": pt, "party": p, "currency": party_currency, "akt_sverka_link": "Акт Сверка"}
 
@@ -74,7 +89,10 @@ def get_data(filters):
             row[f"final_credit_{suffix}"] = final_net if final_net > 0 else 0
             row[f"final_debit_{suffix}"] = -final_net if final_net < 0 else 0
 
-        if not any(row[k] for k in money_keys):
+        visible_keys = money_keys
+        if currency_filter:
+            visible_keys = tuple(k for k in money_keys if k.endswith(currency_filter.lower()))
+        if not any(row[k] for k in visible_keys):
             continue
 
         data.append(row)

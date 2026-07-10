@@ -34,6 +34,12 @@ frappe.query_reports["Kontragent Otchet"] = {
             }
         },
         {
+            "fieldname": "employee_group",
+            "label": __("Гуруҳ"),
+            "fieldtype": "Link",
+            "options": "Employee Group"
+        },
+        {
             "fieldname": "currency",
             "label": __("Валюта"),
             "fieldtype": "Select",
