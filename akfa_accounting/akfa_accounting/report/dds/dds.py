@@ -124,17 +124,19 @@ def get_data(filters):
             expense_summaries[desc]["chiqim"] += chiqim
 
         # Xodimlarni employee group bo'yicha guruhlash
+        emp_group = ""
         if info["category"] == "employee":
-            group = employee_group_map.get(info.get("party"), "Без группы")
-            if group not in employee_group_summaries:
-                employee_group_summaries[group] = {"kirim": 0, "chiqim": 0}
-            employee_group_summaries[group]["kirim"] += kirim
-            employee_group_summaries[group]["chiqim"] += chiqim
+            emp_group = employee_group_map.get(info.get("party"), "Без группы")
+            if emp_group not in employee_group_summaries:
+                employee_group_summaries[emp_group] = {"kirim": 0, "chiqim": 0}
+            employee_group_summaries[emp_group]["kirim"] += kirim
+            employee_group_summaries[emp_group]["chiqim"] += chiqim
 
         data.append({
             "posting_date": row.posting_date,
             "account": row.account,
             "direction": "Кирим" if kirim else "Чиқим",
+            "employee_group": emp_group,
             "description": strip_category_prefix(info["description"]),
             "category": info["category"],
             "summa": kirim if kirim else chiqim,
@@ -555,11 +557,12 @@ def export_dds_excel(filters):
         summary_rows.append([f"    {name}", t["kirim"], t["chiqim"]])
     summary_rows.append(["Конечный остаток", None, s["closing"]])
 
-    # Транзакции varaqi — xom qatorlar
-    txn_rows = [["Сана", "Касса счёт", "Кирим/Чиқим", "Категория", "Сумма", "Валюта", "Изоҳ", "Тип", "Документ"]]
+    # Транзакции varaqi — xom qatorlar (Employee Group ustuni Кирим/Чиқим bilan Категория orasida)
+    txn_rows = [["Сана", "Касса счёт", "Кирим/Чиқим", "Employee Group", "Категория", "Сумма", "Валюта", "Изоҳ", "Тип", "Документ"]]
     for r in data:
         txn_rows.append([
             r.get("posting_date"), r.get("account"), r.get("direction"),
+            r.get("employee_group"),
             r.get("description"), r.get("summa"), r.get("currency"),
             r.get("remarks"), r.get("voucher_type"), r.get("voucher_no"),
         ])

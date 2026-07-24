@@ -66,10 +66,10 @@
 		});
 	};
 
-	ns.load_employee_options = function ($row, employee_group, selected_value) {
+	ns.load_employee_options = function ($row, employee_group, selected_value, mode_of_payment) {
 		frappe.call({
 			method: 'akfa_accounting.akfa_accounting.doctype.kassa_rasxod.kassa_rasxod.get_employees_by_group',
-			args: { employee_group: employee_group },
+			args: { employee_group: employee_group, mode_of_payment: mode_of_payment || null },
 			callback: function (r) {
 				let $select = $row.find('.item-employee');
 				$select.empty();

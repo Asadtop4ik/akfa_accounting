@@ -383,7 +383,7 @@
 		} else if (is_podochot_type) {
 			ns.load_employee_group_options($row, item.employee_group);
 			if (item.employee_group) {
-				ns.load_employee_options($row, item.employee_group, item.employee);
+				ns.load_employee_options($row, item.employee_group, item.employee, frm.doc.mode_of_payment);
 			}
 		} else if (is_koplashga) {
 			if (item.party_type) {

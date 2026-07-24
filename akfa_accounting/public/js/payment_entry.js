@@ -283,7 +283,7 @@ function update_paid_from_balance(frm) {
         // Use setTimeout to ensure this runs after ERPNext's handlers
         setTimeout(function () {
             frappe.call({
-                method: 'erpnext.accounts.utils.get_balance_on',
+                method: 'akfa_accounting.akfa_accounting.api.payment_entry_api.get_account_balance',
                 args: {
                     account: frm.doc.paid_from,
                     date: frm.doc.posting_date
@@ -303,7 +303,7 @@ function update_paid_to_balance(frm) {
         // Use setTimeout to ensure this runs after ERPNext's handlers
         setTimeout(function () {
             frappe.call({
-                method: 'erpnext.accounts.utils.get_balance_on',
+                method: 'akfa_accounting.akfa_accounting.api.payment_entry_api.get_account_balance',
                 args: {
                     account: frm.doc.paid_to,
                     date: frm.doc.posting_date

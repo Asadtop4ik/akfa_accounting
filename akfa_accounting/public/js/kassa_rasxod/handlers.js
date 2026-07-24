@@ -54,7 +54,7 @@
 			ns.items_data[idx].employee = '';
 			ns.save_items_data(frm);
 			if (employee_group) {
-				ns.load_employee_options($row, employee_group, '');
+				ns.load_employee_options($row, employee_group, '', frm.doc.mode_of_payment);
 			} else {
 				$row.find('.item-employee').empty().append('<option value="">-</option>');
 			}

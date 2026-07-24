@@ -227,16 +227,68 @@ class KassaRasxod(Document):
 # ==================== Whitelisted API Methods ====================
 
 @frappe.whitelist()
-def get_employees_by_group(employee_group):
-    """Get employees belonging to an Employee Group"""
+def get_employees_by_group(employee_group, mode_of_payment=None):
+    """Get employees belonging to an Employee Group.
+
+    When mode_of_payment is provided, restrict the list to employees whose
+    outstanding podotchyot debt is in the SAME currency as the mode's cash
+    account: USD cash -> employee creditor account 2120, UZS cash -> 2121.
+    Only employees with a non-zero balance in that account are returned.
+    Without mode_of_payment (or if the accounts can't be resolved), all
+    employees in the group are returned (backward compatible).
+    """
     if not employee_group:
         return []
-    
-    return frappe.db.sql("""
-        SELECT employee, employee_name 
-        FROM `tabEmployee Group Table` 
+
+    employees = frappe.db.sql("""
+        SELECT employee, employee_name
+        FROM `tabEmployee Group Table`
         WHERE parent = %s AND parenttype = 'Employee Group'
     """, employee_group, as_dict=True)
+
+    if not mode_of_payment or not employees:
+        return employees
+
+    # Resolve currency + company from the mode of payment's cash account
+    cash_account = frappe.db.get_value(
+        "Mode of Payment Account",
+        {"parent": mode_of_payment, "parenttype": "Mode of Payment"},
+        "default_account",
+    )
+    if not cash_account:
+        return employees
+
+    account_info = frappe.db.get_value(
+        "Account", cash_account, ["account_currency", "company"], as_dict=True
+    )
+    if not account_info or not account_info.account_currency:
+        return employees
+
+    # Employee creditor account for that currency: 2120 (USD) / 2121 (UZS)
+    account_number = "2120" if account_info.account_currency == "USD" else "2121"
+    creditor_account = frappe.db.get_value(
+        "Account",
+        {"account_number": account_number, "company": account_info.company},
+        "name",
+    )
+    if not creditor_account:
+        return employees
+
+    from frappe.utils import flt
+
+    emp_ids = [e.employee for e in employees]
+    balances = frappe.db.sql("""
+        SELECT party, SUM(debit_in_account_currency - credit_in_account_currency) AS bal
+        FROM `tabGL Entry`
+        WHERE account = %s
+          AND party_type = 'Employee'
+          AND party IN %s
+          AND is_cancelled = 0
+        GROUP BY party
+    """, (creditor_account, tuple(emp_ids)), as_dict=True)
+
+    with_debt = {b.party for b in balances if abs(flt(b.bal)) >= 0.01}
+    return [e for e in employees if e.employee in with_debt]
 
 
 @frappe.whitelist()

@@ -70,6 +70,7 @@ frappe.ui.form.on("Cash Distribution Entry", {
 
 					// Clear existing items
 					frm.clear_table("transfer_items");
+					frm.clear_table("receive_items");
 					frm.clear_table("rasxod_items");
 					frm.clear_table("category_summary");
 
@@ -78,6 +79,19 @@ frappe.ui.form.on("Cash Distribution Entry", {
 						r.message.transfer_items.forEach(function(item) {
 							let row = frm.add_child("transfer_items");
 							row.payment_entry = item.payment_entry;
+							row.currency = item.currency;
+							row.amount = item.amount;
+							row.source_account = item.source_account;
+						});
+					}
+
+					// 2b. Populate direct Receive payments into Aripov
+					if (r.message.receive_items && r.message.receive_items.length > 0) {
+						r.message.receive_items.forEach(function(item) {
+							let row = frm.add_child("receive_items");
+							row.payment_entry = item.payment_entry;
+							row.party_type = item.party_type;
+							row.party = item.party;
 							row.currency = item.currency;
 							row.amount = item.amount;
 							row.source_account = item.source_account;
@@ -105,15 +119,17 @@ frappe.ui.form.on("Cash Distribution Entry", {
 					}
 
 					frm.refresh_field("transfer_items");
+					frm.refresh_field("receive_items");
 					frm.refresh_field("rasxod_items");
 					frm.refresh_field("category_summary");
 					frm.trigger("calculate_totals");
 
 					// Show summary
 					let transfer_count = (r.message.transfer_items || []).length;
+					let receive_count = (r.message.receive_items || []).length;
 					let rasxod_count = (r.message.rasxod_items || []).length;
 					frappe.show_alert({
-						message: __("Data fetched: {0} transfers, {1} rasxod entries", [transfer_count, rasxod_count]),
+						message: __("Data fetched: {0} transfers, {1} receive, {2} rasxod entries", [transfer_count, receive_count, rasxod_count]),
 						indicator: "green"
 					});
 				}
@@ -147,9 +163,22 @@ frappe.ui.form.on("Cash Distribution Entry", {
 		});
 		frm.set_value("hamidulla_rasxod_usd", hamidulla_rasxod_usd);
 
-		// ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod
-		let aripov_total_usd = internal_transfers_usd + hamidulla_rasxod_usd;
-		let aripov_total_uzs = internal_transfers_uzs;
+		// Payment Entry Receive TO ARIPOV
+		let receive_total_usd = 0;
+		let receive_total_uzs = 0;
+		(frm.doc.receive_items || []).forEach(function(item) {
+			if (item.currency === "USD") {
+				receive_total_usd += flt(item.amount);
+			} else if (item.currency === "UZS") {
+				receive_total_uzs += flt(item.amount);
+			}
+		});
+		frm.set_value("receive_total_usd", receive_total_usd);
+		frm.set_value("receive_total_uzs", receive_total_uzs);
+
+		// ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod + Receive
+		let aripov_total_usd = internal_transfers_usd + hamidulla_rasxod_usd + receive_total_usd;
+		let aripov_total_uzs = internal_transfers_uzs + receive_total_uzs;
 		frm.set_value("aripov_total_usd", aripov_total_usd);
 		frm.set_value("aripov_total_uzs", aripov_total_uzs);
 

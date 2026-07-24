@@ -20,6 +20,10 @@
         "section_break_rasxod",
         "rasxod_items",
         "hamidulla_rasxod_usd",
+        "section_break_receive",
+        "receive_items",
+        "receive_total_usd",
+        "receive_total_uzs",
         "section_break_category",
         "category_summary",
         "section_break_distribution",
@@ -133,6 +137,32 @@
             "read_only": 1
         },
         {
+            "fieldname": "section_break_receive",
+            "fieldtype": "Section Break",
+            "label": "Payment Entry Qabul (Receive → Aripov)"
+        },
+        {
+            "fieldname": "receive_items",
+            "fieldtype": "Table",
+            "label": "Qabul qilingan to'lovlar",
+            "options": "Cash Distribution Receive Item",
+            "read_only": 1
+        },
+        {
+            "fieldname": "receive_total_usd",
+            "fieldtype": "Currency",
+            "label": "Qabul (USD)",
+            "options": "USD",
+            "read_only": 1
+        },
+        {
+            "fieldname": "receive_total_uzs",
+            "fieldtype": "Currency",
+            "label": "Qabul (UZS)",
+            "options": "UZS",
+            "read_only": 1
+        },
+        {
             "fieldname": "section_break_category",
             "fieldtype": "Section Break",
             "label": "Kategoriya bo'yicha tushumlar (Information)"
@@ -170,7 +200,7 @@
         },
         {
             "bold": 1,
-            "description": "= Internal Transfers + Hamidulla Rasxod",
+            "description": "= Internal Transfers + Hamidulla Rasxod + Qabul (Receive)",
             "fieldname": "aripov_total_usd",
             "fieldtype": "Currency",
             "label": "ARIPOV TOTAL (USD)",
@@ -197,7 +227,7 @@
         },
         {
             "bold": 1,
-            "description": "= Internal Transfers + Hamidulla Rasxod",
+            "description": "= Internal Transfers + Hamidulla Rasxod + Qabul (Receive)",
             "fieldname": "aripov_total_uzs",
             "fieldtype": "Currency",
             "label": "ARIPOV TOTAL (UZS)",

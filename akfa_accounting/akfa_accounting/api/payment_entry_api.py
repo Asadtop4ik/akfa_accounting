@@ -245,3 +245,21 @@ def get_daily_exchange_rates(date=None):
         frappe.log_error(f"Error fetching exchange rates: {e}")
         return {}
 
+
+@frappe.whitelist()
+def get_account_balance(account, date=None):
+    """Whitelisted wrapper for an account's balance on a date.
+
+    ERPNext's erpnext.accounts.utils.get_balance_on is NOT whitelisted, so the
+    client cannot call it directly (even as Administrator). The Payment Entry
+    client script calls this instead to show paid_from/paid_to balances.
+    """
+    if not account:
+        return 0
+
+    if not date:
+        date = frappe.utils.today()
+
+    from erpnext.accounts.utils import get_balance_on
+    return get_balance_on(account=account, date=date) or 0
+

@@ -127,7 +127,7 @@ class CashDistributionEntry(Document):
 
 	def calculate_totals(self):
 		"""Calculate totals based on new business logic:
-		ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod
+		ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod + Qabul (Receive)
 		"""
 		# Internal Transfers TO ARIPOV
 		self.internal_transfers_usd = sum(
@@ -142,9 +142,23 @@ class CashDistributionEntry(Document):
 		# Hamidulla Kassa Rasxod (investor qopladi, converted to USD)
 		self.hamidulla_rasxod_usd = sum(flt(r.amount_usd) for r in self.rasxod_items)
 
-		# ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod
-		self.aripov_total_usd = flt(self.internal_transfers_usd) + flt(self.hamidulla_rasxod_usd)
-		self.aripov_total_uzs = flt(self.internal_transfers_uzs)
+		# Payment Entry Receive TO ARIPOV (money received directly into Aripov cash)
+		self.receive_total_usd = sum(
+			flt(r.amount) for r in self.receive_items
+			if r.currency == "USD"
+		)
+		self.receive_total_uzs = sum(
+			flt(r.amount) for r in self.receive_items
+			if r.currency == "UZS"
+		)
+
+		# ARIPOV TOTAL = Internal Transfers + Hamidulla Rasxod + Receive
+		self.aripov_total_usd = (
+			flt(self.internal_transfers_usd)
+			+ flt(self.hamidulla_rasxod_usd)
+			+ flt(self.receive_total_usd)
+		)
+		self.aripov_total_uzs = flt(self.internal_transfers_uzs) + flt(self.receive_total_uzs)
 
 		# Total Distributed (from distribution_details)
 		self.total_distributed_usd = sum(
@@ -190,12 +204,14 @@ class CashDistributionEntry(Document):
 		self.create_distribution_journal_entry()
 		self.mark_kassa_rasxod_as_distributed()
 		self.mark_payment_entries_as_distributed()
+		self.mark_receive_payment_entries_as_distributed()
 
 	def on_cancel(self):
 		"""Cancel linked Journal Entry and unmark distributed items"""
 		self.cancel_distribution_journal_entry()
 		self.unmark_kassa_rasxod()
 		self.unmark_payment_entries()
+		self.unmark_receive_payment_entries()
 
 	def create_distribution_journal_entry(self):
 		"""Create a single Journal Entry for all distributions.
@@ -405,6 +421,18 @@ class CashDistributionEntry(Document):
 			if item.payment_entry:
 				frappe.db.set_value("Payment Entry", item.payment_entry, "custom_is_distributed", 0)
 
+	def mark_receive_payment_entries_as_distributed(self):
+		"""Mark direct Receive Payment Entries (into Aripov) as distributed"""
+		for item in self.receive_items:
+			if item.payment_entry:
+				frappe.db.set_value("Payment Entry", item.payment_entry, "custom_is_distributed", 1)
+
+	def unmark_receive_payment_entries(self):
+		"""Unmark Receive Payment Entries when this document is cancelled"""
+		for item in self.receive_items:
+			if item.payment_entry:
+				frappe.db.set_value("Payment Entry", item.payment_entry, "custom_is_distributed", 0)
+
 
 def get_account_by_number(account_number, company):
 	"""Get account name by account number and company"""
@@ -442,6 +470,30 @@ def get_cash_distribution_data(posting_date, company):
 			FROM `tabPayment Entry` pe
 			WHERE pe.posting_date = %s
 				AND pe.payment_type = 'Internal Transfer'
+				AND pe.paid_to IN %s
+				AND pe.company = %s
+				AND pe.docstatus = 1
+				AND IFNULL(pe.custom_is_distributed, 0) = 0
+			ORDER BY pe.name
+		""", (posting_date, aripov_accounts, company), as_dict=True)
+
+	# 2b. Get direct Receive payments INTO Aripov (payment_type = 'Receive').
+	# These are NOT internal transfers — money received straight into Aripov cash
+	# from a customer/party. Uses received_amount (amount landed in the Aripov account,
+	# in the account's own currency).
+	receive_items = []
+	if aripov_accounts:
+		receive_items = frappe.db.sql("""
+			SELECT
+				pe.name as payment_entry,
+				pe.party_type as party_type,
+				pe.party as party,
+				pe.paid_to_account_currency as currency,
+				pe.received_amount as amount,
+				pe.paid_from as source_account
+			FROM `tabPayment Entry` pe
+			WHERE pe.posting_date = %s
+				AND pe.payment_type = 'Receive'
 				AND pe.paid_to IN %s
 				AND pe.company = %s
 				AND pe.docstatus = 1
@@ -526,6 +578,7 @@ def get_cash_distribution_data(posting_date, company):
 
 	return {
 		"transfer_items": transfer_items,
+		"receive_items": receive_items,
 		"rasxod_items": rasxod_items,
 		"category_items": category_items,
 		"aripov_usd_balance": aripov_usd_balance or 0,
