@@ -264,31 +264,46 @@ def get_employees_by_group(employee_group, mode_of_payment=None):
     if not account_info or not account_info.account_currency:
         return employees
 
-    # Employee creditor account for that currency: 2120 (USD) / 2121 (UZS)
-    account_number = "2120" if account_info.account_currency == "USD" else "2121"
-    creditor_account = frappe.db.get_value(
-        "Account",
-        {"account_number": account_number, "company": account_info.company},
-        "name",
-    )
-    if not creditor_account:
-        return employees
-
     from frappe.utils import flt
 
     emp_ids = [e.employee for e in employees]
-    balances = frappe.db.sql("""
-        SELECT party, SUM(debit_in_account_currency - credit_in_account_currency) AS bal
-        FROM `tabGL Entry`
-        WHERE account = %s
-          AND party_type = 'Employee'
-          AND party IN %s
-          AND is_cancelled = 0
-        GROUP BY party
-    """, (creditor_account, tuple(emp_ids)), as_dict=True)
 
-    with_debt = {b.party for b in balances if abs(flt(b.bal)) >= 0.01}
-    return [e for e in employees if e.employee in with_debt]
+    def employees_with_debt(account_number):
+        """Employees having a non-zero balance in the given creditor account.
+        Employee creditor accounts: 2120 (USD) / 2121 (UZS)."""
+        account = frappe.db.get_value(
+            "Account",
+            {"account_number": account_number, "company": account_info.company},
+            "name",
+        )
+        if not account:
+            return set()
+        rows = frappe.db.sql("""
+            SELECT party, SUM(debit_in_account_currency - credit_in_account_currency) AS bal
+            FROM `tabGL Entry`
+            WHERE account = %s
+              AND party_type = 'Employee'
+              AND party IN %s
+              AND is_cancelled = 0
+            GROUP BY party
+        """, (account, tuple(emp_ids)), as_dict=True)
+        return {r.party for r in rows if abs(flt(r.bal)) >= 0.01}
+
+    usd_debt = employees_with_debt("2120")
+    uzs_debt = employees_with_debt("2121")
+
+    if account_info.account_currency == "USD":
+        same_currency_debt, other_currency_debt = usd_debt, uzs_debt
+    else:
+        same_currency_debt, other_currency_debt = uzs_debt, usd_debt
+
+    # Show employees who have debt in the SELECTED currency, PLUS employees with
+    # no debt at all. Hide only those whose debt exists solely in the OTHER
+    # currency (e.g. an employee with only UZS debt is hidden in USD mode).
+    return [
+        e for e in employees
+        if e.employee in same_currency_debt or e.employee not in other_currency_debt
+    ]
 
 
 @frappe.whitelist()
