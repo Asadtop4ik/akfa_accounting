@@ -633,3 +633,53 @@ def get_payment_entries(posting_date, company):
 	return {
 		"payment_entries": payment_entries
 	}
+
+
+@frappe.whitelist()
+def get_hamidulla_rasxod_detail(kassa_rasxod_names):
+	"""Per-item breakdown that forms the Hamidulla Rasxod (USD) total.
+
+	For each linked Kassa Rasxod, parse items_data and return only the "Расход"
+	items with no party (investor-covered expenses), exposing where the total
+	comes from: schet (cost_center / Счёт), tip1 (category / Тип 1), the native
+	amount + its currency, the exchange rate (kurs) and the USD equivalent.
+	"""
+	if isinstance(kassa_rasxod_names, str):
+		try:
+			kassa_rasxod_names = json.loads(kassa_rasxod_names)
+		except (json.JSONDecodeError, TypeError):
+			kassa_rasxod_names = [kassa_rasxod_names] if kassa_rasxod_names else []
+
+	if not kassa_rasxod_names:
+		return []
+
+	rows = frappe.db.sql("""
+		SELECT name, mode_of_payment, items_data
+		FROM `tabKassa Rasxod`
+		WHERE name IN %s
+	""", (tuple(kassa_rasxod_names),), as_dict=True)
+
+	usd_mode = HAMIDULLA_MODES.get("USD")
+	detail = []
+	for kr in rows:
+		is_usd = kr.mode_of_payment == usd_mode
+		currency = "USD" if is_usd else "UZS"
+		try:
+			items = json.loads(kr.items_data or "[]")
+		except (json.JSONDecodeError, TypeError):
+			items = []
+		for item in items:
+			if (item.get("rasxod_podochot") == "Расход"
+					and not item.get("party")
+					and not item.get("party_type")):
+				amount = flt(item.get("paid_amount_usd")) if is_usd else flt(item.get("paid_amount_uzs"))
+				detail.append({
+					"kassa_rasxod": kr.name,
+					"schet": item.get("cost_center") or "",
+					"tip1": item.get("category") or "",
+					"amount": amount,
+					"currency": currency,
+					"kurs": flt(item.get("currency_exchange_rate")),
+					"amount_usd": flt(item.get("paid_amount_usd")),
+				})
+	return detail

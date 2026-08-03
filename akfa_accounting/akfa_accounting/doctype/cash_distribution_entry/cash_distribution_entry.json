@@ -20,6 +20,7 @@
         "section_break_rasxod",
         "rasxod_items",
         "hamidulla_rasxod_usd",
+        "hamidulla_rasxod_detail",
         "section_break_receive",
         "receive_items",
         "receive_total_usd",
@@ -135,6 +136,11 @@
             "label": "Hamidulla Rasxod (USD)",
             "options": "USD",
             "read_only": 1
+        },
+        {
+            "fieldname": "hamidulla_rasxod_detail",
+            "fieldtype": "HTML",
+            "label": "Hamidulla Rasxod tafsiloti"
         },
         {
             "fieldname": "section_break_receive",

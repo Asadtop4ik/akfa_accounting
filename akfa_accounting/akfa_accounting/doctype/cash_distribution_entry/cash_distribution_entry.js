@@ -20,6 +20,9 @@ frappe.ui.form.on("Cash Distribution Entry", {
 		// Grid footer: USD Ekvivalent jami (mavjud hujjatlar uchun ham)
 		render_usd_ekvivalent_total(frm);
 
+		// Hamidulla Rasxod tafsiloti (drill-down) tugmasi
+		render_hamidulla_detail(frm);
+
 		// Show link to Journal Entries if exists
 		if (frm.doc.journal_entry) {
 			frm.add_custom_button(__("View Journal Entries"), function() {
@@ -123,6 +126,7 @@ frappe.ui.form.on("Cash Distribution Entry", {
 					frm.refresh_field("rasxod_items");
 					frm.refresh_field("category_summary");
 					frm.trigger("calculate_totals");
+					render_hamidulla_detail(frm);
 
 					// Show summary
 					let transfer_count = (r.message.transfer_items || []).length;
@@ -294,6 +298,90 @@ frappe.ui.form.on("Cash Distribution Detail", {
 		frm.trigger("calculate_totals");
 	}
 });
+
+function render_hamidulla_detail(frm) {
+	// "Hamidulla Rasxod (USD)" summasi qayerdan shakllanganini ko'rsatuvchi
+	// ochib-yopiladigan (drill-down) jadval.
+	let field = frm.get_field("hamidulla_rasxod_detail");
+	if (!field || !field.$wrapper) return;
+
+	let $wrapper = field.$wrapper;
+	$wrapper.empty();
+
+	let kr_names = (frm.doc.rasxod_items || [])
+		.map((r) => r.kassa_rasxod)
+		.filter(Boolean);
+	if (!kr_names.length) return;
+
+	let $btn = $(
+		`<button class="btn btn-xs btn-default" style="margin:2px 0 8px;">` +
+			__("Hamidulla rasxod tafsilotini ko'rsatish") +
+			` <span class="hd-arrow">▼</span></button>`
+	);
+	let $box = $(`<div class="hamidulla-detail-box" style="display:none;"></div>`);
+	$wrapper.append($btn).append($box);
+
+	let loaded = false;
+	$btn.on("click", function () {
+		if ($box.is(":visible")) {
+			$box.hide();
+			$btn.find(".hd-arrow").text("▼");
+			return;
+		}
+		$box.show();
+		$btn.find(".hd-arrow").text("▲");
+		if (loaded) return;
+		frappe.call({
+			method: "akfa_accounting.akfa_accounting.doctype.cash_distribution_entry.cash_distribution_entry.get_hamidulla_rasxod_detail",
+			args: { kassa_rasxod_names: JSON.stringify(kr_names) },
+			callback: function (r) {
+				$box.html(build_hamidulla_table(r.message || []));
+				loaded = true;
+			},
+		});
+	});
+}
+
+function build_hamidulla_table(rows) {
+	if (!rows.length) {
+		return `<div class="text-muted" style="padding:8px;">${__("Ma'lumot yo'q")}</div>`;
+	}
+	const cell = "padding:6px 8px;border:1px solid #e5e5e5;";
+	let total_usd = 0;
+	let body = "";
+	rows.forEach(function (r) {
+		total_usd += flt(r.amount_usd);
+		let amt = format_number(r.amount, null, r.currency === "USD" ? 2 : 0);
+		body +=
+			`<tr>` +
+			`<td style="${cell}">${frappe.utils.escape_html(r.kassa_rasxod || "")}</td>` +
+			`<td style="${cell}">${frappe.utils.escape_html(r.schet || "")}</td>` +
+			`<td style="${cell}">${frappe.utils.escape_html(r.tip1 || "")}</td>` +
+			`<td style="${cell}text-align:right;">${amt}</td>` +
+			`<td style="${cell}text-align:center;">${frappe.utils.escape_html(r.currency || "")}</td>` +
+			`<td style="${cell}text-align:right;">${format_number(r.kurs)}</td>` +
+			`<td style="${cell}text-align:right;color:#2e7d32;">${format_currency(r.amount_usd, "USD")}</td>` +
+			`</tr>`;
+	});
+	return (
+		`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">` +
+		`<thead><tr style="background:#f5f5f5;">` +
+		`<th style="${cell}text-align:left;">Kassa Rasxod</th>` +
+		`<th style="${cell}text-align:left;">Счёт</th>` +
+		`<th style="${cell}text-align:left;">Тип 1</th>` +
+		`<th style="${cell}text-align:right;">Сумма</th>` +
+		`<th style="${cell}text-align:center;">Валюта</th>` +
+		`<th style="${cell}text-align:right;">Курс</th>` +
+		`<th style="${cell}text-align:right;">$ qiymati</th>` +
+		`</tr></thead>` +
+		`<tbody>${body}</tbody>` +
+		`<tfoot><tr style="background:#f5f5f5;font-weight:bold;">` +
+		`<td colspan="6" style="${cell}text-align:right;">${__("Jami (USD)")}</td>` +
+		`<td style="${cell}text-align:right;color:#2e7d32;">${format_currency(total_usd, "USD")}</td>` +
+		`</tr></tfoot>` +
+		`</table></div>`
+	);
+}
 
 function render_usd_ekvivalent_total(frm) {
 	let field = frm.fields_dict.distribution_details;
