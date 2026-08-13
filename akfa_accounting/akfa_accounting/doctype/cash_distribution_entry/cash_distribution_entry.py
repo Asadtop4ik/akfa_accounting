@@ -278,9 +278,19 @@ class CashDistributionEntry(Document):
 		# Credit Aripov cash up to its available balance; route the shortfall to 2112.
 		shortfall_usd_total = 0  # combined shortfall credited to 2112 (in USD)
 
-		# Row 1: Credit Aripov USD account (capped at available USD balance)
+		# Hamidulla rasxod (investor qopladi) — bu real Aripov kassasi EMAS (notional
+		# kirim). Shuning uchun uni har doim OFIS 2112 (USD) ga kreditlaymiz; Aripov
+		# 1114 esa faqat real USD (transfer + receive) qismini qoplaydi. Shunda kunlik
+		# Aripov kassasi 0 ga keladi, minusда osilib qolmaydi.
+		ofis_from_hamidulla = (
+			min(flt(self.hamidulla_rasxod_usd), total_usd_distributed)
+			if total_usd_distributed > 0 else 0
+		)
+
+		# Row 1: Credit Aripov USD account (real qism, mavjud balansgacha)
 		if total_usd_distributed > 0 and aripov_usd_account:
-			credit_1114 = min(total_usd_distributed, max(avail_usd, 0))
+			real_usd_needed = total_usd_distributed - ofis_from_hamidulla
+			credit_1114 = min(real_usd_needed, max(avail_usd, 0))
 			if credit_1114 > 0:
 				je.append("accounts", {
 					"account": aripov_usd_account,
@@ -289,7 +299,8 @@ class CashDistributionEntry(Document):
 					"debit_in_account_currency": 0,
 					"credit_in_account_currency": credit_1114,
 				})
-			shortfall_usd_total += total_usd_distributed - credit_1114
+			# OFIS 2112 = notional Hamidulla + (real yetmasa) qolgan shortfall
+			shortfall_usd_total += ofis_from_hamidulla + (real_usd_needed - credit_1114)
 
 		# Row 2: Credit Aripov UZS account (capped at available UZS balance)
 		if total_uzs_distributed > 0 and aripov_uzs_account:
@@ -683,3 +694,115 @@ def get_hamidulla_rasxod_detail(kassa_rasxod_names):
 					"amount_usd": flt(item.get("paid_amount_usd")),
 				})
 	return detail
+
+
+@frappe.whitelist()
+def get_calendar_status(month, year, company=None):
+	"""Per-day cash-distribution closure status for a month.
+
+	Har kun uchun: Aripov kassaga tushган INFLOW (Internal Transfer + Receive +
+	Hamidulla rasxod) taqsimlanганmi. Undistributed (custom_is_distributed=0)
+	qolgan bo'lsa — kun "yopilmagan" (red). Hammasi taqsimlangan + o'sha kunда
+	CDE bor bo'lsa — "yopilgan" (green). Faoliyat bo'lmasa — neutral.
+	"""
+	import calendar as _calendar
+
+	month = int(month)
+	year = int(year)
+	if not company:
+		company = (
+			frappe.db.get_single_value("Global Defaults", "default_company")
+			or frappe.db.get_value("Company", {}, "name")
+		)
+
+	last_day = _calendar.monthrange(year, month)[1]
+	start = f"{year:04d}-{month:02d}-01"
+	end = f"{year:04d}-{month:02d}-{last_day:02d}"
+
+	aripov_usd = get_account_by_number("1114", company)
+	aripov_uzs = get_account_by_number("1115", company)
+	aripov_accounts = [a for a in [aripov_usd, aripov_uzs] if a]
+
+	days = {}
+
+	def _day(ds):
+		return days.setdefault(ds, {"undist_usd": 0.0, "undist_uzs": 0.0, "hamidulla": 0.0})
+
+	# Undistributed transfers + receives into Aripov
+	if aripov_accounts:
+		rows = frappe.db.sql(
+			"""
+			SELECT posting_date AS pd, paid_to_account_currency AS ccy,
+				   SUM(CASE WHEN paid_to_account_currency='UZS' THEN received_amount ELSE paid_amount END) AS amt
+			FROM `tabPayment Entry`
+			WHERE payment_type IN ('Internal Transfer', 'Receive')
+			  AND paid_to IN %(acc)s AND company = %(co)s AND docstatus = 1
+			  AND IFNULL(custom_is_distributed, 0) = 0
+			  AND posting_date BETWEEN %(s)s AND %(e)s
+			GROUP BY posting_date, paid_to_account_currency
+			""",
+			{"acc": tuple(aripov_accounts), "co": company, "s": start, "e": end},
+			as_dict=True,
+		)
+		for r in rows:
+			rec = _day(str(r.pd))
+			if r.ccy == "USD":
+				rec["undist_usd"] += flt(r.amt)
+			else:
+				rec["undist_uzs"] += flt(r.amt)
+
+	# Undistributed Hamidulla rasxod (Kassa Rasxod, faqat "Расход" party'siz itemlar)
+	kr_rows = frappe.db.sql(
+		"""
+		SELECT posting_date AS pd, items_data
+		FROM `tabKassa Rasxod`
+		WHERE mode_of_payment IN %(modes)s AND docstatus = 1
+		  AND IFNULL(custom_is_distributed, 0) = 0
+		  AND posting_date BETWEEN %(s)s AND %(e)s
+		""",
+		{"modes": tuple(HAMIDULLA_MODES.values()), "s": start, "e": end},
+		as_dict=True,
+	)
+	for kr in kr_rows:
+		usd = 0.0
+		try:
+			items = json.loads(kr.items_data or "[]")
+		except (json.JSONDecodeError, TypeError):
+			items = []
+		for it in items:
+			if (it.get("rasxod_podochot") == "Расход"
+					and not it.get("party") and not it.get("party_type")):
+				usd += flt(it.get("paid_amount_usd"))
+		if usd:
+			rec = _day(str(kr.pd))
+			rec["undist_usd"] += usd
+			rec["hamidulla"] += usd
+
+	# Days with a submitted CDE
+	cde_days = {
+		str(d) for d in frappe.get_all(
+			"Cash Distribution Entry",
+			filters={"docstatus": 1, "company": company, "posting_date": ["between", [start, end]]},
+			pluck="posting_date",
+		)
+	}
+
+	out = {}
+	for day in range(1, last_day + 1):
+		ds = f"{year:04d}-{month:02d}-{day:02d}"
+		rec = days.get(ds)
+		has_cde = ds in cde_days
+		if rec and (rec["undist_usd"] > 0.01 or rec["undist_uzs"] > 0.01):
+			status = "red"
+		elif has_cde:
+			status = "green"
+		else:
+			status = "neutral"
+		out[ds] = {
+			"status": status,
+			"undist_usd": round(rec["undist_usd"], 2) if rec else 0,
+			"undist_uzs": round(rec["undist_uzs"], 2) if rec else 0,
+			"hamidulla": round(rec["hamidulla"], 2) if rec else 0,
+			"has_cde": has_cde,
+		}
+	return out
